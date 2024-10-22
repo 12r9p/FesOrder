@@ -5,7 +5,8 @@ import MenuItem from './MenuItem';
 
 // クラス情報のJSONオブジェクトを定義
 const classInfo = {
-    name: '9f064cea-39dd-4ab6-a357-95069c50f89a',
+    id: '9f064cea-39dd-4ab6-a357-95069c50f89a',
+    name: 'test',
     image: '/path/to/class-image.jpg',
     introduction: 'クラス紹介文がここに入ります。',
 };
@@ -34,7 +35,7 @@ const MenuPage: React.FC = () => {
     const [menuItems, setMenuItems] = useState<MenuItemProps[]>([]);
 
     useEffect(() => {
-        fetch(`/api/menus?circleId=${encodeURIComponent(classInfo.name)}`)
+        fetch(`/api/menus?circleId=${encodeURIComponent(classInfo.id)}`)
             .then(response => response.json())
             .then(data => setMenuItems(data))
             .catch(error => console.error('Error fetching menu data:', error));

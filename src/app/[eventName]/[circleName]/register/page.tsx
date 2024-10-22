@@ -57,7 +57,7 @@ const OrderPage: React.FC = () => {
     useEffect(() => {
         const fetchMenuItems = async () => {
             try {
-                const response = await fetch(`/api/menus?circleName=${encodeURIComponent(circleName)}`);
+                const response = await fetch(`/api/menus?circleId=${encodeURIComponent(selectedCircleId)}`);
                 const data = await response.json();
                 if (response.ok) {
                     setMenuItems(data);
