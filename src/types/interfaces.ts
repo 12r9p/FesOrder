@@ -20,7 +20,7 @@ export interface MenuItem {
     imagePath: string;
     description: string;
     toppings?: Topping[];
-    additionalInfo?: string[];
+    additionalInfo?: string;
     soldOut: boolean;
 }
 
