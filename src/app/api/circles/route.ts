@@ -1,11 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { Client } from '@notionhq/client';
+import { NextRequest, NextResponse } from "next/server";
+import { Client } from "@notionhq/client";
 import dotenv from "dotenv";
 
 dotenv.config();
 
 const notion = new Client({ auth: process.env.NOTION_API_TOKEN });
-const NOTION_DATABASE_EVENTS :string= process.env.NOTION_DATABASE_CIRCLES || "";
+const NOTION_DATABASE_EVENTS: string =
+  process.env.NOTION_DATABASE_CIRCLES || "";
 
 interface Events {
   id: string;
