@@ -1,3 +1,5 @@
+//サークルIDに一致するメニューとそれに紐づくトッピングデータを取得するAPI
+
 import { Client } from "@notionhq/client";
 import { NextRequest, NextResponse } from "next/server";
 import dotenv from "dotenv";

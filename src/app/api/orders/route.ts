@@ -1,3 +1,5 @@
+//オーダーを送信するAPI
+
 import { NextRequest, NextResponse } from 'next/server';
 import { Client } from '@notionhq/client';
 import { config } from 'dotenv';

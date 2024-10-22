@@ -1,3 +1,6 @@
+//イベント名とサークル名があった場合はそのサークルのIDを含めた情報を返す
+//イベント名だけがあった場合はそのイベントに参加しているサークルの情報を返す
+
 import { Client } from "@notionhq/client";
 import { NextRequest, NextResponse } from "next/server";
 import dotenv from "dotenv";
