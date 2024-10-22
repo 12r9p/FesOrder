@@ -56,33 +56,16 @@ export async function POST(req: NextRequest) {
                     },
                 ],
             },
-        };
-
-        // OrderItemsをプロパティに追加
-        order.orderItems.forEach((item, index) => {
-            properties[`orderItem_${index}_menuItemId`] = {
+            orderItems: {
                 rich_text: [
                     {
                         text: {
-                            content: item.menuItemId,
+                            content: JSON.stringify(order.orderItems),
                         },
                     },
                 ],
-            };
-            properties[`orderItem_${index}_quantity`] = {
-                number: item.quantity,
-            };
-            properties[`orderItem_${index}_toppings`] = {
-                multi_select: item.toppingIds.map((toppingIds) => ({
-                    name: toppingIds,
-                })),
-            };
-            properties[`orderItem_${index}_options`] = {
-                multi_select: item.options.map((option) => ({
-                    name: option,
-                })),
-            };
-        });
+            },
+        };
 
         // Notionページを作成
         await notion.pages.create({

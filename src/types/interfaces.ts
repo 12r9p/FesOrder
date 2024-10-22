@@ -47,6 +47,6 @@ export interface Order {
 export interface OrderItem {
     menuItemId: string;
     quantity: number;
-    toppingIds: string[];
-    options: string[];
+    toppingIds?: string[];
+    options?: string[];
 }
