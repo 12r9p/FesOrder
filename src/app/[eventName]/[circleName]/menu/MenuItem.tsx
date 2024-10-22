@@ -1,13 +1,12 @@
 import React from 'react';
 
-// トッピングのインターフェースを定義
-interface Topping {
+type Topping = {
     id: string;
-    circleId: string;
     name: string;
+    description?: string;
     price: number;
-    description: string;
-}
+    soldOut: boolean; // 売り切れ表示
+};
 
 interface MenuItemProps {
     id: string;
@@ -26,7 +25,15 @@ interface MenuItemProps {
     }[];
 }
 
-const MenuItem: React.FC<MenuItemProps> = ({ name, price, imagePath, description, toppingIds = [], additionalInfo, soldOut, toppings = [], options = [] }) => {
+const MenuItem: React.FC<MenuItemProps> = ({
+    name,
+    price,
+    imagePath,
+    description,
+    toppings = [],
+    additionalInfo,
+    soldOut,
+}) => {
     return (
         <div className={`menu-item p-4 border rounded-lg shadow-lg relative ${soldOut ? 'opacity-50' : ''}`}>
             <div className="relative">
@@ -43,11 +50,14 @@ const MenuItem: React.FC<MenuItemProps> = ({ name, price, imagePath, description
             <div className="toppings mt-4 pl-4 border-l-2 border-gray-300">
                 <h3 className="text-lg font-semibold mb-1">トッピング:</h3>
                 <div className="flex overflow-x-auto space-x-2">
-                    {toppingIds.map((topping, idx) => (
-                        <div key={idx} className="bg-white text-black p-2 rounded min-w-max shadow-md">
+                    {toppings.map((topping, idx) => (
+                        <div key={idx} className={`bg-white text-black p-2 rounded min-w-max shadow-md ${topping.soldOut ? 'opacity-50' : ''}`}>
                             <p className="font-bold">{topping.name}</p>
                             <p>{topping.description}</p>
                             <p className="text-sm text-gray-600">価格: {topping.price}円</p>
+                            {topping.soldOut && (
+                                <p className="text-red-500 font-bold">売り切れ</p>
+                            )}
                         </div>
                     ))}
                 </div>
