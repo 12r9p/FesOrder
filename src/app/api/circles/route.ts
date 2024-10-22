@@ -1,6 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+//サークルIDからサークルの情報を取得するAPI
+
+import {NextRequest, NextResponse } from "next/server";
 import { Client } from "@notionhq/client";
 import dotenv from "dotenv";
+import { Circle } from "@/types/interfaces";
 
 dotenv.config();
 
@@ -8,13 +11,6 @@ const notion = new Client({ auth: process.env.NOTION_API_TOKEN });
 const NOTION_DATABASE_EVENTS: string =
   process.env.NOTION_DATABASE_CIRCLES || "";
 
-interface Events {
-  id: string;
-  name: string;
-  description?: string;
-  iconImagePath?: string;
-  backgroundImagePath?: string;
-}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -40,13 +36,15 @@ export async function GET(req: NextRequest) {
     });
 
     const eventResults = eventResponse.results || [];
-    const events: Events[] = eventResults.map((eventPage: any) => ({
-      id: eventPage.properties.id.title?.[0]?.text?.content || "",
-      name: eventPage.properties.name.rich_text?.[0]?.text?.content || "",
-      description:
-        eventPage.properties.description?.rich_text?.[0]?.text?.content || "",
-      iconImagePath: eventPage.properties.iconImagePath?.url || "",
-      backgroundImagePath: eventPage.properties.backgroundImagePath?.url || "",
+    const events: Circle[] = eventResults.map((eventPage: any) => ({
+        id: eventPage.properties.id.title?.[0]?.text?.content || "",
+        name: eventPage.properties.name.rich_text?.[0]?.text?.content || "",
+        description:
+            eventPage.properties.description?.rich_text?.[0]?.text?.content ||
+            "",
+        iconImagePath: eventPage.properties.iconImagePath?.url || "",
+        backgroundImagePath:
+            eventPage.properties.backgroundImagePath?.url || "",
     }));
 
     return NextResponse.json(events);

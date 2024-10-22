@@ -1,6 +1,7 @@
 import { Client } from "@notionhq/client";
 import { NextRequest, NextResponse } from "next/server";
 import dotenv from "dotenv";
+import { Event } from "@/types/interfaces";
 
 // 環境変数を読み込む
 dotenv.config();
@@ -8,11 +9,6 @@ dotenv.config();
 const notion = new Client({ auth: process.env.NOTION_API_TOKEN });
 const NOTION_DATABASE_EVENTS = process.env.NOTION_DATABASE_EVENTS!;
 
-interface Events {
-    eventName: string;
-    circleName: string;
-    circleId: string;
-};
 
 export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
@@ -54,7 +50,7 @@ export async function GET(req: NextRequest) {
         });
 
         const eventResults = eventResponse.results || [];
-        const events: Events[] = eventResults.map((eventPage: any) => ({
+        const events: Event[] = eventResults.map((eventPage: any) => ({
             eventName: eventPage.properties.eventName.title?.[0]?.text?.content || "",
             circleName: eventPage.properties.circleName.rich_text?.[0]?.text?.content || "",
             circleId: eventPage.properties.circleId.rich_text?.[0]?.text?.content || "",

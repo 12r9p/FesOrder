@@ -2,6 +2,7 @@ import { Client } from "@notionhq/client";
 import { NextRequest, NextResponse } from "next/server";
 import dotenv from "dotenv";
 import fetch from "node-fetch";
+import { MenuItem,Topping } from "@/types/interfaces";
 
 // 環境変数を読み込む
 dotenv.config();
@@ -9,26 +10,6 @@ dotenv.config();
 const notion = new Client({ auth: process.env.NOTION_API_TOKEN });
 const NOTION_DATABASE_MENUS = process.env.NOTION_DATABASE_MENUS!;
 
-interface Topping {
-  id: string;
-  circleId: string;
-  name: string;
-  price: number;
-  description?: string;
-  soldOut: boolean; // 売り切れ表示
-}
-
-interface MenuItem {
-  id: string;
-  circleId: string;
-  name: string;
-  price: number;
-  imagePath: string;
-  description?: string;
-  toppings?: Topping[];
-  additionalInfo?: string;
-  soldOut: boolean; // 売り切れ表示
-}
 
 export async function GET(req: NextRequest) {
   // リクエストからURLの検索パラメータを取得
