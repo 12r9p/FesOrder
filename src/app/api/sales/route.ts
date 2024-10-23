@@ -1,0 +1,91 @@
+import { NextRequest, NextResponse } from "next/server";
+import { Client } from "@notionhq/client";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+interface Order {
+    id: string;
+    circleId: string;
+    orderItems: any[]; // 適切な型に置き換えてください
+    totalPrice: number;
+    peopleCount: number;
+    time: string;
+    cashier: string;
+    createdAt: string; // 追加
+    amount: number; // 追加
+}
+
+const notion = new Client({ auth: process.env.NOTION_API_TOKEN });
+const NOTION_DATABASE_ORDERS: string = process.env.NOTION_DATABASE_ORDERS || "";
+
+export async function GET(req: NextRequest) {
+    const { searchParams } = new URL(req.url);
+    const circleId = searchParams.get("circleId");
+
+    if (!circleId) {
+        return NextResponse.json(
+            { error: "circleId is required" },
+            { status: 400 }
+        );
+    }
+
+    try {
+        // オーダーデータを取得
+        const orderResponse = await notion.databases.query({
+            database_id: NOTION_DATABASE_ORDERS,
+            filter: {
+                property: "circleId",
+                rich_text: {
+                    equals: circleId,
+                },
+            },
+        });
+
+        const orderResults = orderResponse.results || [];
+        const orders: any = orderResults.map((orderPage: any) => ({
+            id: orderPage.id,
+            circleId: orderPage.properties.circleId.rich_text?.[0]?.text?.content || "",
+            amount: orderPage.properties.totalPrice.number || 0,
+            createdAt: orderPage.properties.time.date?.start || "",
+        }));
+
+        // 合計金額を計算
+        const totalAmount = orders.reduce((sum, order) => sum + order.amount, 0);
+
+        // 一時間ごとの合計を計算
+        const hourlyTotals: { [key: string]: number } = {};
+        orders.forEach(order => {
+            const hour = new Date(order.createdAt).getHours();
+            const date = new Date(order.createdAt).toISOString().split('T')[0];
+            const key = `${date} ${hour}:00`;
+            if (!hourlyTotals[key]) {
+                hourlyTotals[key] = 0;
+            }
+            hourlyTotals[key] += order.amount;
+        });
+
+        // 一日ごとの合計を計算
+        const dailyTotals: { [key: string]: number } = {};
+        orders.forEach(order => {
+            const date = new Date(order.createdAt).toISOString().split('T')[0];
+            if (!dailyTotals[date]) {
+                dailyTotals[date] = 0;
+            }
+            dailyTotals[date] += order.amount;
+        });
+
+        return NextResponse.json({
+            totalAmount,
+            hourlyTotals,
+            dailyTotals,
+            orders,
+        });
+    } catch (error) {
+        console.error(error);
+        return NextResponse.json(
+            { error: "Error querying database" },
+            { status: 500 }
+        );
+    }
+}

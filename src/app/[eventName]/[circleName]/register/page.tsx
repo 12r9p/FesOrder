@@ -1,65 +1,73 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation'
 import { v4 as uuidv4 } from 'uuid';
-import { ChevronLeft, ShoppingCart, Plus, Minus, X, User } from 'lucide-react';
+import { ChevronLeft, ShoppingCart, Plus, Minus, X, User, RefreshCw } from 'lucide-react';
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Toaster } from "@/components/ui/toaster"
+import { useToast } from "@/hooks/use-toast"
+import { AnimatePresence, motion } from "framer-motion"
 import { Order, MenuItem, OrderItem } from '@/types/interfaces';
 
-// ... (keep all the interfaces as they were)
-
 const OrderPage: React.FC = () => {
-    const [currentView, setCurrentView] = useState<'menu' | 'details' | 'summary'>('menu');
+    const { eventName, circleName } = useParams()
+    const [circleId, setCircleId] = useState<string | null>(null)
+    const [currentView, setCurrentView] = useState<'menu' | 'details'>('menu');
     const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
     const [cart, setCart] = useState<OrderItem[]>([]);
     const [tempItem, setTempItem] = useState<OrderItem | null>(null);
     const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
     const [orderNumber, setOrderNumber] = useState<string>('');
-    const [activeCategory, setActiveCategory] = useState<string>('all');
     const [numberOfPeople, setNumberOfPeople] = useState<number>(1);
     const [selectedCashier, setSelectedCashier] = useState<{ id: string; name: string } | null>(null);
     const [showCashierDialog, setShowCashierDialog] = useState<boolean>(true);
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-
-    const circleName = 'サークルA';
-    const selectedCircleId = '9f064cea-39dd-4ab6-a357-95069c50f89a';
+    const [showOrderDialog, setShowOrderDialog] = useState<boolean>(false);
+    const [showItemDialog, setShowItemDialog] = useState<boolean>(false);
+    const { toast } = useToast();
 
     useEffect(() => {
         const newOrderNumber = uuidv4();
         setOrderNumber(newOrderNumber);
     }, []);
 
-    useEffect(() => {
-        const fetchMenuItems = async () => {
-            try {
-                const response = await fetch(`/api/menus?circleId=${encodeURIComponent(selectedCircleId)}`);
-                const data = await response.json();
-                if (response.ok) {
-                    setMenuItems(data);
-                } else {
-                    console.error('Error fetching menu items:', data.error);
-                }
-            } catch (error) {
-                console.error('Error fetching menu items:', error);
-            }
-        };
+    const fetchMenuItems = async () => {
+        try {
+            // Fetch circleId
+            const eventResponse = await fetch(`/api/events?eventName=${encodeURIComponent(eventName as string)}&circleName=${encodeURIComponent(circleName as string)}`)
+            const eventData = await eventResponse.json()
+            const circleId = eventData[0].circleId
+            setCircleId(circleId)
 
+            const response = await fetch(`/api/menus?circleId=${encodeURIComponent(circleId)}`);
+            const data = await response.json();
+            if (response.ok) {
+                setMenuItems(data);
+            } else {
+                console.error('Error fetching menu items:', data.error);
+            }
+        } catch (error) {
+            console.error('Error fetching menu items:', error);
+        }
+    };
+
+    useEffect(() => {
         fetchMenuItems();
-    }, [selectedCircleId]);
+    }, [circleId]);
 
     const addToCart = () => {
         if (tempItem) {
             setCart(prevCart => [...prevCart, tempItem]);
             setTempItem(null);
-            setCurrentView('menu');
+            setShowItemDialog(false);
         }
     };
 
@@ -87,7 +95,7 @@ const OrderPage: React.FC = () => {
 
         const orderData: Order = {
             id: uuidv4(),
-            circleId: selectedCircleId,
+            circleId: circleId,
             orderItems: cart,
             time: new Date().toISOString(),
             peopleCount: numberOfPeople,
@@ -105,49 +113,43 @@ const OrderPage: React.FC = () => {
             });
 
             if (response.ok) {
-                alert('注文が送信されました');
+                toast({
+                    title: "Order Submitted",
+                    description: "Your order has been successfully submitted.",
+                });
                 setCart([]);
-                setCurrentView('menu');
+                setShowOrderDialog(false);
                 setNumberOfPeople(1);
             } else {
-                alert('注文の送信に失敗しました');
+                throw new Error('Failed to submit order');
             }
         } catch (error) {
             console.error('Error sending order:', error);
-            alert('注文の送信に失敗しました');
+            toast({
+                title: "Order Submission Failed",
+                description: "Failed to submit your order. Please try again.",
+                variant: "destructive",
+            });
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    const categories = ['all', ...new Set(menuItems.map(item => item.description))];
-
-    const filteredMenuItems = activeCategory === 'all'
-        ? menuItems
-        : menuItems.filter(item => item.description === activeCategory);
-
     const renderMenu = () => (
         <Card className="flex flex-col h-full">
             <CardHeader>
-                <CardTitle>Menu</CardTitle>
-                <Tabs defaultValue="all" className="w-full">
-                    <TabsList className="grid grid-cols-3 lg:grid-cols-5 w-full">
-                        {categories.map(category => (
-                            <TabsTrigger
-                                key={category}
-                                value={category}
-                                onClick={() => setActiveCategory(category)}
-                            >
-                                {category}
-                            </TabsTrigger>
-                        ))}
-                    </TabsList>
-                </Tabs>
+                <CardTitle className="flex justify-between items-center">
+                    <span>Menu</span>
+                    <Button variant="outline" onClick={fetchMenuItems}>
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Update Menu
+                    </Button>
+                </CardTitle>
             </CardHeader>
             <CardContent className="flex-1 overflow-hidden">
                 <ScrollArea className="h-[calc(100vh-16rem)]">
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4">
-                        {filteredMenuItems.map(item => (
+                        {menuItems.map(item => (
                             <Card
                                 key={item.id}
                                 className={`cursor-pointer transition-all hover:shadow-lg ${item.soldOut ? 'opacity-50' : ''}`}
@@ -155,7 +157,7 @@ const OrderPage: React.FC = () => {
                                     if (!item.soldOut) {
                                         setSelectedItem(item);
                                         setTempItem({ menuItemId: item.id, quantity: 1, toppingIds: [] });
-                                        setCurrentView('details');
+                                        setShowItemDialog(true);
                                     }
                                 }}
                             >
@@ -172,7 +174,7 @@ const OrderPage: React.FC = () => {
             </CardContent>
             <CardFooter className="border-t p-4">
                 <Button
-                    onClick={() => setCurrentView('summary')}
+                    onClick={() => setShowOrderDialog(true)}
                     className="w-full"
                     disabled={cart.length === 0}
                 >
@@ -183,107 +185,117 @@ const OrderPage: React.FC = () => {
         </Card>
     );
 
-    const renderDetails = () => {
+    const renderItemDialog = () => {
         if (!selectedItem || !tempItem) return null;
 
         return (
-            <Card className="fixed inset-0 z-50 flex flex-col">
-                <CardHeader className="flex-shrink-0">
-                    <CardTitle className="flex items-center">
-                        <Button variant="ghost" className="mr-2" onClick={() => setCurrentView('menu')}>
-                            <ChevronLeft className="h-6 w-6" />
-                        </Button>
-                        {selectedItem.name}
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="flex-1 overflow-auto">
-                    <ScrollArea className="h-full">
-                        <img src={selectedItem.imagePath} alt={selectedItem.name} className="w-full h-48 object-cover rounded-lg mb-4" />
-                        <h2 className="text-2xl font-bold mb-2">{selectedItem.name}</h2>
-                        <p className="text-xl mb-4">¥{selectedItem.price}</p>
-                        <p className="text-muted-foreground mb-4">{selectedItem.description}</p>
-
-                        {selectedItem.toppings && selectedItem.toppings.length > 0 && (
-                            <div className="mb-4">
-                                <h3 className="font-semibold mb-2">Toppings</h3>
-                                {selectedItem.toppings.map(topping => (
-                                    <div key={topping.id} className="flex items-center space-x-2">
-                                        <Checkbox
-                                            id={`topping-${topping.id}`}
-                                            checked={tempItem.toppingIds?.includes(topping.id)}
-                                            onCheckedChange={(checked) => {
-                                                setTempItem(prev => {
-                                                    if (!prev) return null;
-                                                    const newToppingIds = checked
-                                                        ? [...(prev.toppingIds || []), topping.id]
-                                                        : prev.toppingIds?.filter(id => id !== topping.id) || [];
-                                                    return { ...prev, toppingIds: newToppingIds };
-                                                });
-                                            }}
-                                            disabled={topping.soldOut}
-                                        />
-                                        <Label htmlFor={`topping-${topping.id}`} className={topping.soldOut ? 'text-muted-foreground' : ''}>
-                                            {topping.name} (+¥{topping.price}) {topping.soldOut && '(Sold Out)'}
-                                        </Label>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-
-                        {Array.isArray(selectedItem.additionalInfo) && selectedItem.additionalInfo.length > 0 && (
-                            <div className="mb-4">
-                                <h3 className="font-semibold mb-2">Additional Information</h3>
-                                <ul className="list-disc list-inside">
-                                    {selectedItem.additionalInfo.map((info, index) => (
-                                        <li key={index} className="text-sm text-muted-foreground">{info}</li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
-
-                        <div className="flex items-center justify-center space-x-4 mt-4">
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                onClick={() => setTempItem(prev => prev && { ...prev, quantity: Math.max(1, prev.quantity - 1) })}
+            <AnimatePresence>
+                {showItemDialog && (
+                    <Dialog open={showItemDialog} onOpenChange={setShowItemDialog}>
+                        <DialogContent>
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.9 }}
+                                transition={{ duration: 0.2 }}
                             >
-                                <Minus className="h-4 w-4" />
-                            </Button>
-                            <span className="text-xl font-semibold">{tempItem.quantity}</span>
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                onClick={() => setTempItem(prev => prev && { ...prev, quantity: prev.quantity + 1 })}
-                            >
-                                <Plus className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    </ScrollArea>
-                </CardContent>
-                <CardFooter className="flex justify-between border-t p-4">
-                    <Button variant="outline" onClick={() => setCurrentView('menu')}>
-                        Cancel
-                    </Button>
-                    <Button onClick={addToCart}>
-                        Add to Cart
-                    </Button>
-                </CardFooter>
-            </Card>
+                                <Card className="w-full max-w-md mx-auto">
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center">
+                                            <Button variant="ghost" className="mr-2" onClick={() => setShowItemDialog(false)}>
+                                                <ChevronLeft className="h-6 w-6" />
+                                            </Button>
+                                            {selectedItem.name}
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <ScrollArea className="h-[60vh]">
+                                            <img src={selectedItem.imagePath} alt={selectedItem.name} className="w-full h-48 object-cover rounded-lg mb-4" />
+                                            <h2 className="text-2xl font-bold mb-2">{selectedItem.name}</h2>
+                                            <p className="text-xl mb-4">¥{selectedItem.price}</p>
+                                            <p className="text-muted-foreground mb-4">{selectedItem.description}</p>
+
+                                            {selectedItem.toppings && selectedItem.toppings.length > 0 && (
+                                                <div className="mb-4">
+                                                    <h3 className="font-semibold mb-2">Toppings</h3>
+                                                    {selectedItem.toppings.map(topping => (
+                                                        <div key={topping.id} className="flex items-center space-x-2">
+                                                            <Checkbox
+                                                                id={`topping-${topping.id}`}
+                                                                checked={tempItem.toppingIds?.includes(topping.id)}
+                                                                onCheckedChange={(checked) => {
+                                                                    setTempItem(prev => {
+                                                                        if (!prev) return null;
+                                                                        const newToppingIds = checked
+                                                                            ? [...(prev.toppingIds || []), topping.id]
+                                                                            : prev.toppingIds?.filter(id => id !== topping.id) || [];
+                                                                        return { ...prev, toppingIds: newToppingIds };
+                                                                    });
+                                                                }}
+                                                                disabled={topping.soldOut}
+                                                            />
+                                                            <Label htmlFor={`topping-${topping.id}`} className={topping.soldOut ? 'text-muted-foreground' : ''}>
+                                                                {topping.name} (+¥{topping.price}) {topping.soldOut && '(Sold Out)'}
+                                                            </Label>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {Array.isArray(selectedItem.additionalInfo) && selectedItem.additionalInfo.length > 0 && (
+                                                <div className="mb-4">
+                                                    <h3 className="font-semibold mb-2">Additional Information</h3>
+                                                    <ul className="list-disc list-inside">
+                                                        {selectedItem.additionalInfo.map((info, index) => (
+                                                            <li key={index} className="text-sm text-muted-foreground">{info}</li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            )}
+
+                                            <div className="flex items-center justify-center space-x-4 mt-4">
+                                                <Button
+                                                    variant="outline"
+                                                    size="icon"
+                                                    onClick={() => setTempItem(prev => prev && { ...prev, quantity: Math.max(1, prev.quantity - 1) })}
+                                                >
+                                                    <Minus className="h-4 w-4" />
+                                                </Button>
+                                                <span className="text-xl font-semibold">{tempItem.quantity}</span>
+                                                <Button
+                                                    variant="outline"
+                                                    size="icon"
+                                                    onClick={() => setTempItem(prev => prev && { ...prev, quantity: prev.quantity + 1 })}
+                                                >
+                                                    <Plus className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </ScrollArea>
+                                    </CardContent>
+                                    <CardFooter className="flex justify-between border-t p-4">
+                                        <Button variant="outline" onClick={() => setShowItemDialog(false)}>
+                                            Cancel
+                                        </Button>
+                                        <Button onClick={addToCart}>
+                                            Add to Cart
+                                        </Button>
+                                    </CardFooter>
+                                </Card>
+                            </motion.div>
+                        </DialogContent>
+                    </Dialog>
+                )}
+            </AnimatePresence>
         );
     };
 
-    const renderSummary = () => (
-        <Card className="flex flex-col h-full">
-            <CardHeader>
-                <CardTitle className="flex items-center">
-                    <Button variant="ghost" className="mr-2" onClick={() => setCurrentView('menu')}>
-                        <ChevronLeft className="h-6 w-6" />
-                    </Button>
-                    Order Summary
-                </CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 overflow-hidden">
-                <ScrollArea className="h-[calc(100vh-16rem)]">
+    const renderOrderDialog = () => (
+        <Dialog open={showOrderDialog} onOpenChange={setShowOrderDialog}>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>Order Summary</DialogTitle>
+                </DialogHeader>
+                <ScrollArea className="h-[50vh]">
                     {cart.map(item => {
                         const menuItem = menuItems.find(mi => mi.id === item.menuItemId);
                         if (!menuItem) return null;
@@ -304,6 +316,7 @@ const OrderPage: React.FC = () => {
                                         <Button
                                             variant="ghost"
                                             size="icon"
+
                                             onClick={() => removeFromCart(item.menuItemId)}
                                             aria-label={`Remove ${menuItem.name} from cart`}
                                         >
@@ -315,8 +328,6 @@ const OrderPage: React.FC = () => {
                         );
                     })}
                 </ScrollArea>
-            </CardContent>
-            <CardFooter className="flex-col border-t p-4">
                 <div className="flex justify-between items-center w-full mb-4">
                     <span className="text-xl font-semibold">Total:</span>
                     <span className="text-xl font-semibold">¥{getTotalPrice()}</span>
@@ -331,12 +342,13 @@ const OrderPage: React.FC = () => {
                         min="1"
                     />
                 </div>
-
-                <Button onClick={handleSubmit} className="w-full" disabled={isSubmitting}>
-                    {isSubmitting ? 'Submitting...' : 'Confirm Order'}
-                </Button>
-            </CardFooter>
-        </Card>
+                <DialogFooter>
+                    <Button onClick={handleSubmit} disabled={isSubmitting}>
+                        {isSubmitting ? 'Submitting...' : 'Confirm Order'}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 
     const renderCashierDialog = () => (
@@ -381,9 +393,7 @@ const OrderPage: React.FC = () => {
     return (
         <div className="h-screen flex flex-col bg-background">
             <header className="bg-primary text-primary-foreground p-4 flex items-center">
-                <h1 className="text-xl font-bold">
-                    {currentView === 'menu' ? 'Menu' : currentView === 'details' ? 'Item Details' : 'Order Summary'}
-                </h1>
+                <h1 className="text-xl font-bold">Menu</h1>
                 <Badge variant="secondary" className="ml-auto mr-2">
                     Order #: {orderNumber.slice(0, 8)}
                 </Badge>
@@ -395,11 +405,12 @@ const OrderPage: React.FC = () => {
                 )}
             </header>
             <main className="flex-1 overflow-hidden p-4">
-                {currentView === 'menu' && renderMenu()}
-                {currentView === 'details' && renderDetails()}
-                {currentView === 'summary' && renderSummary()}
+                {renderMenu()}
             </main>
+            {renderItemDialog()}
+            {renderOrderDialog()}
             {renderCashierDialog()}
+            <Toaster />
         </div>
     );
 };
