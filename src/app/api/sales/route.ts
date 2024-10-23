@@ -7,13 +7,13 @@ dotenv.config();
 interface Order {
     id: string;
     circleId: string;
-    orderItems: any[]; // 適切な型に置き換えてください
+    orderItems: any[]; // Replace with appropriate type
     totalPrice: number;
     peopleCount: number;
     time: string;
     cashier: string;
-    createdAt: string; // 追加
-    amount: number; // 追加
+    createdAt: string; // added
+    amount: number; // added
 }
 
 const notion = new Client({ auth: process.env.NOTION_API_TOKEN });
@@ -31,30 +31,44 @@ export async function GET(req: NextRequest) {
     }
 
     try {
-        // オーダーデータを取得
-        const orderResponse = await notion.databases.query({
-            database_id: NOTION_DATABASE_ORDERS,
-            filter: {
-                property: "circleId",
-                rich_text: {
-                    equals: circleId,
+        let hasMore = true;
+        let startCursor: string | null = null;
+        let orders: any[] = [];
+
+        while (hasMore) {
+            // Fetch up to 100 records at a time
+            const orderResponse = await notion.databases.query({
+                database_id: NOTION_DATABASE_ORDERS,
+                filter: {
+                    property: "circleId",
+                    rich_text: {
+                        equals: circleId,
+                    },
                 },
-            },
-        });
+                start_cursor: startCursor || undefined,
+                page_size: 100, // Limit to 100 items
+            });
 
-        const orderResults = orderResponse.results || [];
-        const orders: any = orderResults.map((orderPage: any) => ({
-            id: orderPage.id,
-            orderItems:
-                orderPage.properties.orderItems.rich_text?.[0]?.text?.content ||
-                "",
-            peopleCount:
-                orderPage.properties.peopleCount.number || "",
-            amount: orderPage.properties.totalPrice.number || 0,
-            createdAt: orderPage.properties.time.date?.start || "",
-        }));
+            const orderResults = orderResponse.results || [];
+            orders = orders.concat(
+                orderResults.map((orderPage: any) => ({
+                    id:
+                        orderPage.properties.id.title?.[0]?.text?.content || "",
+                    orderItems:
+                        orderPage.properties.orderItems.rich_text?.[0]?.text
+                            ?.content || "",
+                    peopleCount: orderPage.properties.peopleCount?.number || "",
+                    amount: orderPage.properties.totalPrice?.number || 0,
+                    createdAt: orderPage.properties.time?.date?.start || "",
+                }))
+            );
 
-        // 合計金額を計算
+            // Check if there are more records to fetch
+            startCursor = orderResponse.next_cursor;
+            hasMore = orderResponse.has_more;
+        }
+
+        // Calculate total amount
         const totalAmount = orders.reduce(
             (sum, order) => sum + order.amount,
             0

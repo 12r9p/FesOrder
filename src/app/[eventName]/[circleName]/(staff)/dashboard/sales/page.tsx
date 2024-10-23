@@ -1,11 +1,11 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import "@/app/globals.css"
 import { useParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
 import { Loader2, RefreshCw } from "lucide-react"
-import { Bar, Line, Pie } from 'react-chartjs-2'
+import { Bar, Line } from 'react-chartjs-2'
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import DatePickerWithRange from "@/components/date-picker-with-range"
@@ -70,6 +70,7 @@ interface ToppingSales {
 export default function EnhancedSalesDashboard() {
     const { eventName, circleName } = useParams()
     const [salesData, setSalesData] = useState<SalesData | null>(null)
+    const [menuItems, setMenuItems] = useState<MenuItem[]>([])
     const [loading, setLoading] = useState(true)
     const [timeRange, setTimeRange] = useState('daily')
     const [dateRange, setDateRange] = useState<DateRange>({
@@ -84,9 +85,17 @@ export default function EnhancedSalesDashboard() {
             const eventData = await eventResponse.json()
             const circleId = eventData[0].circleId
 
-            const response = await fetch(`/api/sales?circleId=${encodeURIComponent(circleId)}`)
-            const data = await response.json()
-            setSalesData(data)
+            const salesResponse = await fetch(`/api/sales?circleId=${encodeURIComponent(circleId)}`)
+            const salesData = await salesResponse.json()
+            setSalesData(salesData)
+
+            const menusResponse = await fetch(`/api/menus?circleId=${encodeURIComponent(circleId)}`);
+            const menusData = await menusResponse.json();
+            if (menusResponse.ok) {
+                setMenuItems(menusData);
+            } else {
+                console.error('Error fetching menu items:', menusData.error);
+            }
         } catch (error) {
             console.error('Error fetching sales data:', error)
         } finally {
@@ -124,6 +133,7 @@ export default function EnhancedSalesDashboard() {
         const toppingSales: ToppingSales = {}
         const hourlyOrderCounts: { [key: string]: number } = {}
         let totalCustomers = 0
+        const uniqueCustomerSets: { [key: string]: Set<string> } = {}
 
         orders.forEach(order => {
             const date = new Date(order.createdAt)
@@ -161,8 +171,13 @@ export default function EnhancedSalesDashboard() {
                     })
                 })
 
-                // Count customers
-                totalCustomers += order.peopleCount
+                // Count unique customers per time period
+                if (!uniqueCustomerSets[key]) {
+                    uniqueCustomerSets[key] = new Set()
+                }
+                uniqueCustomerSets[key].add(order.id)
+
+                totalCustomers += order.peopleCount;
 
                 // Count hourly orders
                 const hourKey = `${date.getHours().toString().padStart(2, '0')}:00`
@@ -170,8 +185,12 @@ export default function EnhancedSalesDashboard() {
             }
         })
 
+        // Calculate total unique customers
+        //totalCustomers = Object.values(uniqueCustomerSets).reduce((acc, set) => acc + set.size, 0)
+
         return { totals, menuItemSales, toppingSales, totalCustomers, hourlyOrderCounts }
     }
+
 
     const { totals, menuItemSales, toppingSales, totalCustomers, hourlyOrderCounts } = processOrdersData(salesData.orders, timeRange)
 

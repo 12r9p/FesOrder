@@ -45,15 +45,20 @@ export async function GET(req: NextRequest) {
       const toppingIds = page.properties.toppingIds?.rich_text?.[0]?.text?.content.split(",") || [];
 
       return {
-        id: page.properties.id.title?.[0]?.text?.content || "", // メニューアイテムのID
-        circleId: page.properties.circleId.rich_text?.[0]?.text?.content || "", // サークルのID
-        name: page.properties.name.rich_text?.[0]?.text?.content || "", // メニューアイテムの名前
-        price: page.properties.price.number, // メニューアイテムの価格
-        imagePath: page.properties.imagePath.url, // メニューアイテムの画像パス
-        description: page.properties.description?.rich_text?.[0]?.text?.content || "", // メニューアイテムの説明
-        additionalInfo: page.properties.additionalInfo?.rich_text?.[0]?.text?.content || "", // 追加情報
-        soldOut: page.properties.soldOut?.checkbox || false, // 売り切れ表示
-        toppingIds: toppingIds // トッピングIDの配列
+          id: page.properties.id.title?.[0]?.text?.content || "", // メニューアイテムのID
+          circleId:
+              page.properties.circleId.rich_text?.[0]?.text?.content || "", // サークルのID
+          name: page.properties.name.rich_text?.[0]?.text?.content || "", // メニューアイテムの名前
+          price: page.properties.price.number, // メニューアイテムの価格
+          imagePath:
+              page.properties.imagePath?.rich_text?.[0]?.text?.content || "", // メニューアイテムの画像パス
+          description:
+              page.properties.description?.rich_text?.[0]?.text?.content || "", // メニューアイテムの説明
+          additionalInfo:
+              page.properties.additionalInfo?.rich_text?.[0]?.text?.content ||
+              "", // 追加情報
+          soldOut: page.properties.soldOut?.checkbox || false, // 売り切れ表示
+          toppingIds: toppingIds, // トッピングIDの配列
       };
     });
 

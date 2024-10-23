@@ -10,6 +10,7 @@ const EventCirclePage = () => {
         <div>
             <h1>Event: {eventName}</h1>
             <h2>Circle: {circleName}</h2>
+            <img src="https://static.zenn.studio/images/drawing/discussion.png" alt="logo" />
         </div>
     );
 };
