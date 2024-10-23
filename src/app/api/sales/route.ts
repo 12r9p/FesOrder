@@ -45,9 +45,11 @@ export async function GET(req: NextRequest) {
         const orderResults = orderResponse.results || [];
         const orders: any = orderResults.map((orderPage: any) => ({
             id: orderPage.id,
-            circleId:
-                orderPage.properties.circleId.rich_text?.[0]?.text?.content ||
+            orderItems:
+                orderPage.properties.orderItems.rich_text?.[0]?.text?.content ||
                 "",
+            peopleCount:
+                orderPage.properties.peopleCount.number || "",
             amount: orderPage.properties.totalPrice.number || 0,
             createdAt: orderPage.properties.time.date?.start || "",
         }));

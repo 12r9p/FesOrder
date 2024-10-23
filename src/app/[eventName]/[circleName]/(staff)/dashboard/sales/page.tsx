@@ -35,13 +35,18 @@ ChartJS.register(
     Legend
 )
 
+interface OrderItem {
+    menuItemId: string
+    quantity: number
+    toppingIds: string[]
+}
+
 interface Order {
     id: string
-    circleId: string
+    orderItems: string
+    peopleCount: number
     amount: number
     createdAt: string
-    menuItemId: string
-    menuItemName: string
 }
 
 interface SalesData {
@@ -54,7 +59,15 @@ interface DateRange {
     to: Date
 }
 
-export default function SalesDashboard() {
+interface MenuItemSales {
+    [key: string]: { quantity: number; amount: number }
+}
+
+interface ToppingSales {
+    [key: string]: number
+}
+
+export default function EnhancedSalesDashboard() {
     const { eventName, circleName } = useParams()
     const [salesData, setSalesData] = useState<SalesData | null>(null)
     const [loading, setLoading] = useState(true)
@@ -107,7 +120,10 @@ export default function SalesDashboard() {
 
     const processOrdersData = (orders: Order[], range: string) => {
         const totals: { [key: string]: number } = {}
-        const menuItemSales: { [key: string]: number } = {}
+        const menuItemSales: MenuItemSales = {}
+        const toppingSales: ToppingSales = {}
+        const hourlyOrderCounts: { [key: string]: number } = {}
+        let totalCustomers = 0
 
         orders.forEach(order => {
             const date = new Date(order.createdAt)
@@ -130,14 +146,34 @@ export default function SalesDashboard() {
                         break
                 }
                 totals[key] = (totals[key] || 0) + order.amount
-                menuItemSales[order.menuItemName] = (menuItemSales[order.menuItemName] || 0) + order.amount
+
+                // Process order items
+                const orderItems: OrderItem[] = JSON.parse(order.orderItems)
+                orderItems.forEach(item => {
+                    if (!menuItemSales[item.menuItemId]) {
+                        menuItemSales[item.menuItemId] = { quantity: 0, amount: 0 }
+                    }
+                    menuItemSales[item.menuItemId].quantity += item.quantity
+                    menuItemSales[item.menuItemId].amount += (order.amount / orderItems.length) * item.quantity
+
+                    item.toppingIds.forEach(toppingId => {
+                        toppingSales[toppingId] = (toppingSales[toppingId] || 0) + item.quantity
+                    })
+                })
+
+                // Count customers
+                totalCustomers += order.peopleCount
+
+                // Count hourly orders
+                const hourKey = `${date.getHours().toString().padStart(2, '0')}:00`
+                hourlyOrderCounts[hourKey] = (hourlyOrderCounts[hourKey] || 0) + 1
             }
         })
 
-        return { totals, menuItemSales }
+        return { totals, menuItemSales, toppingSales, totalCustomers, hourlyOrderCounts }
     }
 
-    const { totals, menuItemSales } = processOrdersData(salesData.orders, timeRange)
+    const { totals, menuItemSales, toppingSales, totalCustomers, hourlyOrderCounts } = processOrdersData(salesData.orders, timeRange)
 
     const chartData = {
         labels: Object.keys(totals).sort(),
@@ -156,42 +192,85 @@ export default function SalesDashboard() {
         labels: Object.keys(menuItemSales),
         datasets: [
             {
-                data: Object.values(menuItemSales),
-                backgroundColor: [
-                    'rgba(255, 99, 132, 0.8)',
-                    'rgba(54, 162, 235, 0.8)',
-                    'rgba(255, 206, 86, 0.8)',
-                    'rgba(75, 192, 192, 0.8)',
-                    'rgba(153, 102, 255, 0.8)',
-                ],
+                label: 'Sales Amount',
+                data: Object.values(menuItemSales).map(item => item.amount),
+                backgroundColor: 'rgba(255, 99, 132, 0.8)',
+            },
+        ],
+    }
+
+    const toppingChartData = {
+        labels: Object.keys(toppingSales),
+        datasets: [
+            {
+                label: 'Quantity Sold',
+                data: Object.values(toppingSales),
+                backgroundColor: 'rgba(75, 192, 192, 0.8)',
+            },
+        ],
+    }
+
+    const hourlyOrderChartData = {
+        labels: Object.keys(hourlyOrderCounts).sort(),
+        datasets: [
+            {
+                label: 'Orders per Hour',
+                data: Object.keys(hourlyOrderCounts).sort().map(key => hourlyOrderCounts[key]),
+                backgroundColor: 'rgba(153, 102, 255, 0.5)',
+                borderColor: 'rgb(153, 102, 255)',
+                tension: 0.1,
             },
         ],
     }
 
     return (
         <div className="container mx-auto p-4">
-            <div className="flex justify-between items-center mb-8">
-                <h1 className="text-4xl font-bold">Sales Dashboard</h1>
+            <div className="flex flex-col md:flex-row justify-between items-center mb-8">
+                <h1 className="text-4xl font-bold mb-4 md:mb-0">Sales Dashboard</h1>
                 <Button onClick={handleRefresh} className="flex items-center gap-2">
                     <RefreshCw className="h-4 w-4" />
                     Refresh
                 </Button>
             </div>
 
-            <Card className="mb-8">
-                <CardHeader>
-                    <CardTitle>Total Sales</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-6xl font-bold text-center text-primary">
-                        {formatCurrency(salesData.totalAmount)}
-                    </p>
-                </CardContent>
-            </Card>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Total Sales</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-4xl font-bold text-center text-primary">
+                            {formatCurrency(salesData.totalAmount)}
+                        </p>
+                    </CardContent>
+                </Card>
 
-            <div className="flex justify-between items-center mb-4">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Total Customers</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-4xl font-bold text-center text-primary">
+                            {totalCustomers}
+                        </p>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Average Order Value</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-4xl font-bold text-center text-primary">
+                            {formatCurrency(salesData.totalAmount / salesData.orders.length)}
+                        </p>
+                    </CardContent>
+                </Card>
+            </div>
+
+            <div className="flex flex-col md:flex-row justify-between items-center mb-4">
                 <Select value={timeRange} onValueChange={setTimeRange}>
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-[180px] mb-4 md:mb-0">
                         <SelectValue placeholder="Select time range" />
                     </SelectTrigger>
                     <SelectContent>
@@ -204,17 +283,19 @@ export default function SalesDashboard() {
                 <DatePickerWithRange date={dateRange} setDate={setDateRange} />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
                 <Card>
                     <CardHeader>
                         <CardTitle>Sales Over Time</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        {timeRange === 'hourly' ? (
-                            <Line data={chartData} options={{ responsive: true, maintainAspectRatio: false }} />
-                        ) : (
-                            <Bar data={chartData} options={{ responsive: true, maintainAspectRatio: false }} />
-                        )}
+                        <div className="h-[300px]">
+                            {timeRange === 'hourly' ? (
+                                <Line data={chartData} options={{ responsive: true, maintainAspectRatio: false }} />
+                            ) : (
+                                <Bar data={chartData} options={{ responsive: true, maintainAspectRatio: false }} />
+                            )}
+                        </div>
                     </CardContent>
                 </Card>
 
@@ -223,12 +304,38 @@ export default function SalesDashboard() {
                         <CardTitle>Menu Item Sales</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <Pie data={menuItemChartData} options={{ responsive: true, maintainAspectRatio: false }} />
+                        <div className="h-[300px]">
+                            <Bar data={menuItemChartData} options={{ responsive: true, maintainAspectRatio: false }} />
+                        </div>
                     </CardContent>
                 </Card>
             </div>
 
-            <Card className="mt-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Topping Sales</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="h-[300px]">
+                            <Bar data={toppingChartData} options={{ responsive: true, maintainAspectRatio: false }} />
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Hourly Order Count</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="h-[300px]">
+                            <Line data={hourlyOrderChartData} options={{ responsive: true, maintainAspectRatio: false }} />
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            <Card>
                 <CardHeader>
                     <CardTitle>Recent Orders</CardTitle>
                 </CardHeader>
@@ -238,7 +345,7 @@ export default function SalesDashboard() {
                             <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                                 <tr>
                                     <th scope="col" className="px-6 py-3">Order ID</th>
-                                    <th scope="col" className="px-6 py-3">Menu Item</th>
+                                    <th scope="col" className="px-6 py-3">Items</th>
                                     <th scope="col" className="px-6 py-3">Amount</th>
                                     <th scope="col" className="px-6 py-3">Date</th>
                                 </tr>
@@ -247,7 +354,7 @@ export default function SalesDashboard() {
                                 {salesData.orders.slice(0, 10).map((order) => (
                                     <tr key={order.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
                                         <td className="px-6 py-4">{order.id.slice(0, 8)}...</td>
-                                        <td className="px-6 py-4">{order.menuItemName}</td>
+                                        <td className="px-6 py-4">{JSON.parse(order.orderItems).map((item: OrderItem) => `${item.quantity}x ${item.menuItemId}`).join(', ')}</td>
                                         <td className="px-6 py-4">{formatCurrency(order.amount)}</td>
                                         <td className="px-6 py-4">{new Date(order.createdAt).toLocaleString('ja-JP')}</td>
                                     </tr>
