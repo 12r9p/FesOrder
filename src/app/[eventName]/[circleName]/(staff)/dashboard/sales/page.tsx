@@ -67,6 +67,12 @@ interface ToppingSales {
     [key: string]: number
 }
 
+interface MenuItem {
+    id: string
+    name: string
+    toppings: { id: string; name: string }[]
+}
+
 export default function EnhancedSalesDashboard() {
     const { eventName, circleName } = useParams()
     const [salesData, setSalesData] = useState<SalesData | null>(null)
@@ -89,12 +95,12 @@ export default function EnhancedSalesDashboard() {
             const salesData = await salesResponse.json()
             setSalesData(salesData)
 
-            const menusResponse = await fetch(`/api/menus?circleId=${encodeURIComponent(circleId)}`);
-            const menusData = await menusResponse.json();
+            const menusResponse = await fetch(`/api/menus?circleId=${encodeURIComponent(circleId)}`)
+            const menusData = await menusResponse.json()
             if (menusResponse.ok) {
-                setMenuItems(menusData);
+                setMenuItems(menusData)
             } else {
-                console.error('Error fetching menu items:', menusData.error);
+                console.error('Error fetching menu items:', menusData.error)
             }
         } catch (error) {
             console.error('Error fetching sales data:', error)
@@ -125,6 +131,19 @@ export default function EnhancedSalesDashboard() {
 
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(amount)
+    }
+
+    const getMenuItemName = (id: string) => {
+        const menuItem = menuItems.find(item => item.id === id)
+        return menuItem ? menuItem.name : id
+    }
+
+    const getToppingName = (id: string) => {
+        for (const menuItem of menuItems) {
+            const topping = menuItem.toppings.find(t => t.id === id)
+            if (topping) return topping.name
+        }
+        return id
     }
 
     const processOrdersData = (orders: Order[], range: string) => {
@@ -160,14 +179,16 @@ export default function EnhancedSalesDashboard() {
                 // Process order items
                 const orderItems: OrderItem[] = JSON.parse(order.orderItems)
                 orderItems.forEach(item => {
-                    if (!menuItemSales[item.menuItemId]) {
-                        menuItemSales[item.menuItemId] = { quantity: 0, amount: 0 }
+                    const menuItemName = getMenuItemName(item.menuItemId)
+                    if (!menuItemSales[menuItemName]) {
+                        menuItemSales[menuItemName] = { quantity: 0, amount: 0 }
                     }
-                    menuItemSales[item.menuItemId].quantity += item.quantity
-                    menuItemSales[item.menuItemId].amount += (order.amount / orderItems.length) * item.quantity
+                    menuItemSales[menuItemName].quantity += item.quantity
+                    menuItemSales[menuItemName].amount += (order.amount / orderItems.length) * item.quantity
 
                     item.toppingIds.forEach(toppingId => {
-                        toppingSales[toppingId] = (toppingSales[toppingId] || 0) + item.quantity
+                        const toppingName = getToppingName(toppingId)
+                        toppingSales[toppingName] = (toppingSales[toppingName] || 0) + item.quantity
                     })
                 })
 
@@ -177,7 +198,7 @@ export default function EnhancedSalesDashboard() {
                 }
                 uniqueCustomerSets[key].add(order.id)
 
-                totalCustomers += order.peopleCount;
+                totalCustomers += order.peopleCount
 
                 // Count hourly orders
                 const hourKey = `${date.getHours().toString().padStart(2, '0')}:00`
@@ -185,12 +206,8 @@ export default function EnhancedSalesDashboard() {
             }
         })
 
-        // Calculate total unique customers
-        //totalCustomers = Object.values(uniqueCustomerSets).reduce((acc, set) => acc + set.size, 0)
-
         return { totals, menuItemSales, toppingSales, totalCustomers, hourlyOrderCounts }
     }
-
 
     const { totals, menuItemSales, toppingSales, totalCustomers, hourlyOrderCounts } = processOrdersData(salesData.orders, timeRange)
 
@@ -371,9 +388,13 @@ export default function EnhancedSalesDashboard() {
                             </thead>
                             <tbody>
                                 {salesData.orders.slice(0, 10).map((order) => (
-                                    <tr key={order.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
+                                    <tr key={order.id} className="bg-white border-b  dark:bg-gray-800 dark:border-gray-700">
                                         <td className="px-6 py-4">{order.id.slice(0, 8)}...</td>
-                                        <td className="px-6 py-4">{JSON.parse(order.orderItems).map((item: OrderItem) => `${item.quantity}x ${item.menuItemId}`).join(', ')}</td>
+                                        <td className="px-6 py-4">
+                                            {JSON.parse(order.orderItems).map((item: OrderItem) =>
+                                                `${item.quantity}x ${getMenuItemName(item.menuItemId)}`
+                                            ).join(', ')}
+                                        </td>
                                         <td className="px-6 py-4">{formatCurrency(order.amount)}</td>
                                         <td className="px-6 py-4">{new Date(order.createdAt).toLocaleString('ja-JP')}</td>
                                     </tr>
