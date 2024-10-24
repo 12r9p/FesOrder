@@ -1,6 +1,7 @@
 import { Client } from "@notionhq/client";
 import { NextRequest, NextResponse } from "next/server";
 import dotenv from "dotenv";
+import { Topping } from "@/types/interfaces";
 
 // 環境変数を読み込む
 dotenv.config();
@@ -8,13 +9,6 @@ dotenv.config();
 const notion = new Client({ auth: process.env.NOTION_API_TOKEN });
 const NOTION_DATABASE_TOPPINGS = process.env.NOTION_DATABASE_TOPPINGS!;
 
-interface Topping {
-    id: string;
-    toppingName: string;
-    price: number;
-    description?: string;
-    soldOut: boolean;
-}
 
 export async function GET(req: NextRequest, { params }: { params: { circleId: string } }) {
     const { circleId } = params;

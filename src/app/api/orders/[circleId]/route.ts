@@ -1,22 +1,14 @@
 import { Client } from "@notionhq/client";
 import { NextRequest, NextResponse } from "next/server";
 import dotenv from "dotenv";
+import { Order } from "@/types/interfaces";
 
 dotenv.config();
 
 const notion = new Client({ auth: process.env.NOTION_API_TOKEN });
 const NOTION_DATABASE_ORDERS = process.env.NOTION_DATABASE_ORDERS!;
 
-interface Order {
-    id: string;
-    orderId: string;
-    orderItems: string[];
-    totalPrice: number;
-    peopleCount: number;
-    time: string;
-    cashier: string;
-    orderState: string;
-}
+
 
 export async function GET(req: NextRequest, { params }: { params: { circleId: string } }) {
     const { circleId } = params;

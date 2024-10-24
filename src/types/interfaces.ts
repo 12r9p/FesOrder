@@ -1,7 +1,6 @@
 export interface Event {
     eventName: string;
-    circleName: string;
-    circleId: string;
+    circleId: string[];
 }
 
 export interface Circle {
@@ -14,34 +13,35 @@ export interface Circle {
 
 export interface MenuItem {
     id: string;
-    circleId: string;
-    name: string;
+    circleId?: string;
+    menuName: string;
     price: number;
     imagePath: string;
     description: string;
-    toppings?: Topping[];
+    toppings?: string[];
     additionalInfo?: string;
     soldOut: boolean;
 }
 
 export interface Topping {
     id: string;
-    circleId: string;
-    name: string;
+    circleId?: string;
+    toppingName: string;
     price: number;
     description?: string;
     soldOut: boolean;
 }
 
-
 export interface Order {
     id: string;
-    circleId: string;
-    orderItems: OrderItem[];
+    circleId?: string;
+    orderId: string;
+    orderItems: string[];
     totalPrice: number;
     peopleCount: number;
     time: string;
     cashier: string;
+    orderState: string;
 }
 
 export interface OrderItem {
