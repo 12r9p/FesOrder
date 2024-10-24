@@ -17,7 +17,7 @@ import { useToast } from "@/hooks/use-toast"
 import { AnimatePresence, motion } from "framer-motion"
 import { Order, MenuItem, OrderItem } from '@/types/interfaces';
 
-const OrderPage: React.FC = () => {
+export default function Component() {
     const { eventName, circleName } = useParams()
     const [circleId, setCircleId] = useState<string | null>(null)
     const [currentView, setCurrentView] = useState<'menu' | 'details'>('menu');
@@ -26,12 +26,14 @@ const OrderPage: React.FC = () => {
     const [tempItem, setTempItem] = useState<OrderItem | null>(null);
     const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
     const [orderNumber, setOrderNumber] = useState<string>('');
-    const [numberOfPeople, setNumberOfPeople] = useState<number>(1);
+    const [numberOfPeople, setNumberOfPeople] = useState<number | null>(null);
     const [selectedCashier, setSelectedCashier] = useState<{ id: string; name: string } | null>(null);
     const [showCashierDialog, setShowCashierDialog] = useState<boolean>(true);
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
     const [showOrderDialog, setShowOrderDialog] = useState<boolean>(false);
     const [showItemDialog, setShowItemDialog] = useState<boolean>(false);
+    const [receivedAmount, setReceivedAmount] = useState<number>(0);
+    const [change, setChange] = useState<number>(0);
     const { toast } = useToast();
 
     useEffect(() => {
@@ -41,7 +43,6 @@ const OrderPage: React.FC = () => {
 
     const fetchMenuItems = async () => {
         try {
-            // Fetch circleId
             const eventResponse = await fetch(`/api/events?eventName=${encodeURIComponent(eventName as string)}&circleName=${encodeURIComponent(circleName as string)}`)
             const eventData = await eventResponse.json()
             const circleId = eventData[0].circleId
@@ -91,9 +92,17 @@ const OrderPage: React.FC = () => {
 
     const handleSubmit = async () => {
         if (isSubmitting) return;
+        if (numberOfPeople === null || numberOfPeople < 1) {
+            toast({
+                title: "Invalid Number of People",
+                description: "Please enter a valid number of people (1 or more).",
+                variant: "destructive",
+            });
+            return;
+        }
         setIsSubmitting(true);
 
-        const orderData: Order = {
+        const orderData: any = {
             id: uuidv4(),
             circleId: circleId,
             orderItems: cart,
@@ -101,6 +110,8 @@ const OrderPage: React.FC = () => {
             peopleCount: numberOfPeople,
             totalPrice: getTotalPrice(),
             cashier: selectedCashier?.name || '',
+            receivedAmount: receivedAmount,
+            change: change,
         };
 
         try {
@@ -119,7 +130,9 @@ const OrderPage: React.FC = () => {
                 });
                 setCart([]);
                 setShowOrderDialog(false);
-                setNumberOfPeople(1);
+                setNumberOfPeople(null);
+                setReceivedAmount(0);
+                setChange(0);
             } else {
                 throw new Error('Failed to submit order');
             }
@@ -133,6 +146,13 @@ const OrderPage: React.FC = () => {
         } finally {
             setIsSubmitting(false);
         }
+    };
+
+    const calculateChange = (amount: number) => {
+        const totalPrice = getTotalPrice();
+        const calculatedChange = amount - totalPrice;
+        setReceivedAmount(amount);
+        setChange(calculatedChange >= 0 ? calculatedChange : 0);
     };
 
     const renderMenu = () => (
@@ -192,14 +212,14 @@ const OrderPage: React.FC = () => {
             <AnimatePresence>
                 {showItemDialog && (
                     <Dialog open={showItemDialog} onOpenChange={setShowItemDialog}>
-                        <DialogContent>
+                        <DialogContent className="sm:max-w-[90vw] md:max-w-[600px] max-h-[90vh] overflow-y-auto">
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.9 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 0.9 }}
                                 transition={{ duration: 0.2 }}
                             >
-                                <Card className="w-full max-w-md mx-auto">
+                                <Card className="w-full">
                                     <CardHeader>
                                         <CardTitle className="flex items-center">
                                             <Button variant="ghost" className="mr-2" onClick={() => setShowItemDialog(false)}>
@@ -209,68 +229,70 @@ const OrderPage: React.FC = () => {
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent>
-                                        <ScrollArea className="h-[60vh]">
-                                            <img src={selectedItem.imagePath} alt={selectedItem.name} className="w-full h-48 object-cover rounded-lg mb-4" />
-                                            <h2 className="text-2xl font-bold mb-2">{selectedItem.name}</h2>
-                                            <p className="text-xl mb-4">¥{selectedItem.price}</p>
-                                            <p className="text-muted-foreground mb-4">{selectedItem.description}</p>
+                                        <div className="flex flex-col md:flex-row gap-4">
+                                            <img src={selectedItem.imagePath} alt={selectedItem.name} className="w-full md:w-1/2 h-48 object-cover rounded-lg mb-4" />
+                                            <div className="flex-1">
+                                                <h2 className="text-2xl font-bold mb-2">{selectedItem.name}</h2>
+                                                <p className="text-xl mb-4">¥{selectedItem.price}</p>
+                                                <p className="text-muted-foreground mb-4">{selectedItem.description}</p>
 
-                                            {selectedItem.toppings && selectedItem.toppings.length > 0 && (
-                                                <div className="mb-4">
-                                                    <h3 className="font-semibold mb-2">Toppings</h3>
-                                                    {selectedItem.toppings.map(topping => (
-                                                        <div key={topping.id} className="flex items-center space-x-2">
-                                                            <Checkbox
-                                                                id={`topping-${topping.id}`}
-                                                                checked={tempItem.toppingIds?.includes(topping.id)}
-                                                                onCheckedChange={(checked) => {
-                                                                    setTempItem(prev => {
-                                                                        if (!prev) return null;
-                                                                        const newToppingIds = checked
-                                                                            ? [...(prev.toppingIds || []), topping.id]
-                                                                            : prev.toppingIds?.filter(id => id !== topping.id) || [];
-                                                                        return { ...prev, toppingIds: newToppingIds };
-                                                                    });
-                                                                }}
-                                                                disabled={topping.soldOut}
-                                                            />
-                                                            <Label htmlFor={`topping-${topping.id}`} className={topping.soldOut ? 'text-muted-foreground' : ''}>
-                                                                {topping.name} (+¥{topping.price}) {topping.soldOut && '(Sold Out)'}
-                                                            </Label>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-
-                                            {Array.isArray(selectedItem.additionalInfo) && selectedItem.additionalInfo.length > 0 && (
-                                                <div className="mb-4">
-                                                    <h3 className="font-semibold mb-2">Additional Information</h3>
-                                                    <ul className="list-disc list-inside">
-                                                        {selectedItem.additionalInfo.map((info, index) => (
-                                                            <li key={index} className="text-sm text-muted-foreground">{info}</li>
+                                                {selectedItem.toppings && selectedItem.toppings.length > 0 && (
+                                                    <div className="mb-4">
+                                                        <h3 className="font-semibold mb-2">Toppings</h3>
+                                                        {selectedItem.toppings.map(topping => (
+                                                            <div key={topping.id} className="flex items-center space-x-2">
+                                                                <Checkbox
+                                                                    id={`topping-${topping.id}`}
+                                                                    checked={tempItem.toppingIds?.includes(topping.id)}
+                                                                    onCheckedChange={(checked) => {
+                                                                        setTempItem(prev => {
+                                                                            if (!prev) return null;
+                                                                            const newToppingIds = checked
+                                                                                ? [...(prev.toppingIds || []), topping.id]
+                                                                                : prev.toppingIds?.filter(id => id !== topping.id) || [];
+                                                                            return { ...prev, toppingIds: newToppingIds };
+                                                                        });
+                                                                    }}
+                                                                    disabled={topping.soldOut}
+                                                                />
+                                                                <Label htmlFor={`topping-${topping.id}`} className={topping.soldOut ? 'text-muted-foreground' : ''}>
+                                                                    {topping.name} (+¥{topping.price}) {topping.soldOut && '(Sold Out)'}
+                                                                </Label>
+                                                            </div>
                                                         ))}
-                                                    </ul>
-                                                </div>
-                                            )}
+                                                    </div>
+                                                )}
 
-                                            <div className="flex items-center justify-center space-x-4 mt-4">
-                                                <Button
-                                                    variant="outline"
-                                                    size="icon"
-                                                    onClick={() => setTempItem(prev => prev && { ...prev, quantity: Math.max(1, prev.quantity - 1) })}
-                                                >
-                                                    <Minus className="h-4 w-4" />
-                                                </Button>
-                                                <span className="text-xl font-semibold">{tempItem.quantity}</span>
-                                                <Button
-                                                    variant="outline"
-                                                    size="icon"
-                                                    onClick={() => setTempItem(prev => prev && { ...prev, quantity: prev.quantity + 1 })}
-                                                >
-                                                    <Plus className="h-4 w-4" />
-                                                </Button>
+                                                {Array.isArray(selectedItem.additionalInfo) && selectedItem.additionalInfo.length > 0 && (
+                                                    <div className="mb-4">
+                                                        <h3 className="font-semibold mb-2">Additional Information</h3>
+                                                        <ul className="list-disc list-inside">
+                                                            {selectedItem.additionalInfo.map((info, index) => (
+                                                                <li key={index} className="text-sm text-muted-foreground">{info}</li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                )}
+
+                                                <div className="flex items-center justify-center space-x-4 mt-4">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon"
+                                                        onClick={() => setTempItem(prev => prev && { ...prev, quantity: Math.max(1, prev.quantity - 1) })}
+                                                    >
+                                                        <Minus className="h-4 w-4" />
+                                                    </Button>
+                                                    <span className="text-xl font-semibold">{tempItem.quantity}</span>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon"
+                                                        onClick={() => setTempItem(prev => prev && { ...prev, quantity: prev.quantity + 1 })}
+                                                    >
+                                                        <Plus className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
                                             </div>
-                                        </ScrollArea>
+                                        </div>
                                     </CardContent>
                                     <CardFooter className="flex justify-between border-t p-4">
                                         <Button variant="outline" onClick={() => setShowItemDialog(false)}>
@@ -291,7 +313,7 @@ const OrderPage: React.FC = () => {
 
     const renderOrderDialog = () => (
         <Dialog open={showOrderDialog} onOpenChange={setShowOrderDialog}>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[90vw] md:max-w-[600px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Order Summary</DialogTitle>
                 </DialogHeader>
@@ -316,7 +338,6 @@ const OrderPage: React.FC = () => {
                                         <Button
                                             variant="ghost"
                                             size="icon"
-
                                             onClick={() => removeFromCart(item.menuItemId)}
                                             aria-label={`Remove ${menuItem.name} from cart`}
                                         >
@@ -337,13 +358,31 @@ const OrderPage: React.FC = () => {
                     <Input
                         id="numberOfPeople"
                         type="number"
-                        value={numberOfPeople}
-                        onChange={(e) => setNumberOfPeople(Math.max(1, parseInt(e.target.value) || 1))}
+                        value={numberOfPeople === null ? '' : numberOfPeople}
+                        onChange={(e) => setNumberOfPeople(parseInt(e.target.value) || null)}
                         min="1"
+                        className={numberOfPeople === null ? 'border-red-500' : ''}
+                    />
+                    {numberOfPeople === null && (
+                        <p className="text-red-500 text-sm mt-1">Please enter the number of people</p>
+                    )}
+                </div>
+                <div className="w-full mb-4">
+                    <Label htmlFor="receivedAmount">Received Amount</Label>
+                    <Input
+                        id="receivedAmount"
+                        type="number"
+                        value={receivedAmount}
+                        onChange={(e) => calculateChange(parseFloat(e.target.value) || 0)}
+                        min="0"
                     />
                 </div>
+                <div className="flex justify-between items-center w-full mb-4">
+                    <span className="text-xl font-semibold">Change:</span>
+                    <span className="text-xl font-semibold">¥{change}</span>
+                </div>
                 <DialogFooter>
-                    <Button onClick={handleSubmit} disabled={isSubmitting}>
+                    <Button onClick={handleSubmit} disabled={isSubmitting || numberOfPeople === null}>
                         {isSubmitting ? 'Submitting...' : 'Confirm Order'}
                     </Button>
                 </DialogFooter>
@@ -353,7 +392,7 @@ const OrderPage: React.FC = () => {
 
     const renderCashierDialog = () => (
         <Dialog open={showCashierDialog} onOpenChange={setShowCashierDialog}>
-            <DialogContent>
+            <DialogContent className="sm:max-w-[90vw] md:max-w-[425px]">
                 <DialogHeader>
                     <DialogTitle>Enter Cashier Information</DialogTitle>
                 </DialogHeader>
@@ -413,6 +452,4 @@ const OrderPage: React.FC = () => {
             <Toaster />
         </div>
     );
-};
-
-export default OrderPage;
+}

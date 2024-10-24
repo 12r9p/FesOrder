@@ -42,9 +42,12 @@ export async function GET(req: NextRequest) {
         description:
             eventPage.properties.description?.rich_text?.[0]?.text?.content ||
             "",
-        iconImagePath: eventPage.properties.iconImagePath?.url || "",
+        iconImagePath:
+            eventPage.properties.iconImagePath?.rich_text?.[0]?.text?.content ||
+            "",
         backgroundImagePath:
-            eventPage.properties.backgroundImagePath?.url || "",
+            eventPage.properties.backgroundImagePath?.rich_text?.[0]?.text
+                ?.content || "",
     }));
 
     return NextResponse.json(events);

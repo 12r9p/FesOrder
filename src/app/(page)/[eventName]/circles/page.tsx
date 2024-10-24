@@ -10,6 +10,11 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { AlertCircle } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
+export interface Event {
+    eventName: string;
+    circles: Circle[];
+}
+
 const CircleCard: React.FC<Circle & { eventName: string }> = ({
     id,
     name,
@@ -21,7 +26,7 @@ const CircleCard: React.FC<Circle & { eventName: string }> = ({
     const router = useRouter();
 
     const handleClick = () => {
-        router.push(`/${eventName}/${name}/menu`);
+        router.push(`/${eventName}/${name}/menus`);
     };
 
     return (
@@ -64,7 +69,7 @@ const CircleCard: React.FC<Circle & { eventName: string }> = ({
 
 const CirclesPage = () => {
     const { eventName } = useParams();
-    const [circles, setCircles] = useState<Circle[]>([]);
+    const [circles, setCircles] = useState<Circle[][]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 

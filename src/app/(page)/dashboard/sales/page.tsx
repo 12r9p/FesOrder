@@ -8,8 +8,6 @@ import { Loader2, RefreshCw } from "lucide-react"
 import { Bar, Line } from 'react-chartjs-2'
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import DatePickerWithRange from "@/components/date-picker-with-range"
-import { addDays } from 'date-fns'
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -21,7 +19,7 @@ import {
     Tooltip,
     Legend,
     PointElement,
-} from 'chart.js'
+} from 'chart.js/auto'
 
 ChartJS.register(
     CategoryScale,
@@ -55,8 +53,10 @@ interface SalesData {
 }
 
 interface DateRange {
-    from: Date
-    to: Date
+    startDate?: Date;
+    endDate?: Date;
+    from?: Date|undefined
+    to?: Date
 }
 
 interface MenuItemSales {
@@ -79,17 +79,19 @@ export default function EnhancedSalesDashboard() {
     const [menuItems, setMenuItems] = useState<MenuItem[]>([])
     const [loading, setLoading] = useState(true)
     const [timeRange, setTimeRange] = useState('daily')
-    const [dateRange, setDateRange] = useState<DateRange>({
-        from: addDays(new Date(), -7),
-        to: new Date(),
-    })
+    const [dateRange, setDateRange] = useState<DateRange>({ startDate: new Date(), endDate: new Date() });
 
     const fetchSalesData = useCallback(async () => {
         setLoading(true)
         try {
-            const eventResponse = await fetch(`/api/events?eventName=${encodeURIComponent(eventName as string)}&circleName=${encodeURIComponent(circleName as string)}`)
-            const eventData = await eventResponse.json()
-            const circleId = eventData[0].circleId
+            const circleId = document.cookie
+                .split('; ')
+                .find(row => row.startsWith('circleId='))
+                ?.split('=')[1];
+
+            if (!circleId) {
+                window.location.href = '/login';
+            }
 
             const salesResponse = await fetch(`/api/sales?circleId=${encodeURIComponent(circleId)}`)
             const salesData = await salesResponse.json()
@@ -156,7 +158,8 @@ export default function EnhancedSalesDashboard() {
 
         orders.forEach(order => {
             const date = new Date(order.createdAt)
-            if (date >= dateRange.from && date <= dateRange.to) {
+            totalCustomers += order.peopleCount;
+
                 let key
                 switch (range) {
                     case 'hourly':
@@ -174,7 +177,9 @@ export default function EnhancedSalesDashboard() {
                         key = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`
                         break
                 }
-                totals[key] = (totals[key] || 0) + order.amount
+                if (key !== undefined) {
+                    totals[key] = (totals[key] || 0) + order.amount
+                }
 
                 // Process order items
                 const orderItems: OrderItem[] = JSON.parse(order.orderItems)
@@ -193,18 +198,20 @@ export default function EnhancedSalesDashboard() {
                 })
 
                 // Count unique customers per time period
-                if (!uniqueCustomerSets[key]) {
-                    uniqueCustomerSets[key] = new Set()
+                if (key !== undefined) {
+                    if (!uniqueCustomerSets[key]) {
+                        uniqueCustomerSets[key] = new Set()
+                    }
+                    uniqueCustomerSets[key].add(order.id)
+
+                    // Count hourly orders
+                    const hourKey = `${date.getHours().toString().padStart(2, '0')}:00`
+                    if (hourKey !== undefined) {
+                        hourlyOrderCounts[hourKey] = (hourlyOrderCounts[hourKey] || 0) + 1
+                    }
                 }
-                uniqueCustomerSets[key].add(order.id)
-
-                totalCustomers += order.peopleCount
-
-                // Count hourly orders
-                const hourKey = `${date.getHours().toString().padStart(2, '0')}:00`
-                hourlyOrderCounts[hourKey] = (hourlyOrderCounts[hourKey] || 0) + 1
             }
-        })
+        )
 
         return { totals, menuItemSales, toppingSales, totalCustomers, hourlyOrderCounts }
     }
@@ -316,7 +323,6 @@ export default function EnhancedSalesDashboard() {
                         <SelectItem value="monthly">Monthly</SelectItem>
                     </SelectContent>
                 </Select>
-                <DatePickerWithRange date={dateRange} setDate={setDateRange} />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
@@ -399,6 +405,13 @@ export default function EnhancedSalesDashboard() {
                                         <td className="px-6 py-4">{new Date(order.createdAt).toLocaleString('ja-JP')}</td>
                                     </tr>
                                 ))}
+                                <tr>
+                                    <td colSpan={4} className="text-center py-4">
+                                        <Button onClick={() => window.location.href = '/dashboard/orders'}>
+                                            全ての注文
+                                        </Button>
+                                    </td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
