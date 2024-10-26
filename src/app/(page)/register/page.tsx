@@ -15,16 +15,43 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Toaster } from "@/components/ui/toaster"
 import { useToast } from "@/hooks/use-toast"
 import { AnimatePresence, motion } from "framer-motion"
-import { Order, MenuItem, OrderItem } from '@/types/interfaces';
+import Cookies from 'js-cookie';
+
+interface MenuItem {
+    id: string;
+    menuName: string;
+    price: number;
+    imagePath: string;
+    toppingIds: string[];
+    description: string;
+    additionalInfo: string;
+    soldOut: boolean;
+}
+
+interface Topping {
+    id: string;
+    toppingName: string;
+    price: number;
+    description: string;
+    soldOut: boolean;
+}
+
+interface OrderItem {
+    menuItemId: string;
+    quantity: number;
+    toppingIds: string[];
+}
 
 export default function Component() {
-    const { eventName, circleName } = useParams()
-    const [circleId, setCircleId] = useState<string | null>(null)
+    const [circleId, setCircleId] = useState<string>('');
+    const [circleName, setCircleName] = useState<string>('');
+    const [eventName, setEventName] = useState<string>('');
     const [currentView, setCurrentView] = useState<'menu' | 'details'>('menu');
     const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
     const [cart, setCart] = useState<OrderItem[]>([]);
     const [tempItem, setTempItem] = useState<OrderItem | null>(null);
     const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+    const [toppings, setToppings] = useState<Topping[]>([]);
     const [orderNumber, setOrderNumber] = useState<string>('');
     const [numberOfPeople, setNumberOfPeople] = useState<number | null>(null);
     const [selectedCashier, setSelectedCashier] = useState<{ id: string; name: string } | null>(null);
@@ -36,31 +63,45 @@ export default function Component() {
     const [change, setChange] = useState<number>(0);
     const { toast } = useToast();
 
-    useEffect(() => {
-        const newOrderNumber = uuidv4();
-        setOrderNumber(newOrderNumber);
-    }, []);
 
     const fetchMenuItems = async () => {
         try {
-            const eventResponse = await fetch(`/api/events?eventName=${encodeURIComponent(eventName as string)}&circleName=${encodeURIComponent(circleName as string)}`)
-            const eventData = await eventResponse.json()
-            const circleId = eventData[0].circleId
-            setCircleId(circleId)
+            if (circleId) {
+                const response = await fetch(`/api/menus/${encodeURIComponent(circleId)}`);
+                const menuData: MenuItem[] = await response.json();
+                if (response.ok) {
+                    setMenuItems(menuData);
 
-            const response = await fetch(`/api/menus?circleId=${encodeURIComponent(circleId)}`);
-            const data = await response.json();
-            if (response.ok) {
-                setMenuItems(data);
+                    // Fetch toppings data
+                    const toppingsResponse = await fetch(`/api/toppings/${encodeURIComponent(circleId)}`);
+                    const toppingsData: Topping[] = await toppingsResponse.json();
+                    if (toppingsResponse.ok) {
+                        setToppings(toppingsData);
+                    } else {
+                        console.error('Error fetching toppings:', toppingsData);
+                    }
+                } else {
+                    console.error('Error fetching menu items:', menuData);
+                }
             } else {
-                console.error('Error fetching menu items:', data.error);
+                console.error('Circle ID not found in cookies');
             }
         } catch (error) {
             console.error('Error fetching menu items:', error);
         }
     };
 
+
     useEffect(() => {
+        const circleId = Cookies.get('circleId');
+        const circleName: string | undefined = Cookies.get('circleName');
+        const eventName: string | undefined = Cookies.get('eventName');
+        if (circleId && circleName && eventName ) {
+            setCircleId(circleId);
+            setCircleName(circleName);
+            setEventName(eventName);
+        }
+        setOrderNumber(`${new Date().toISOString().split('T')[0]}-${uuidv4()}`);
         fetchMenuItems();
     }, [circleId]);
 
@@ -83,7 +124,7 @@ export default function Component() {
 
             const itemTotal = menuItem.price * item.quantity;
             const toppingsTotal = (item.toppingIds || []).reduce((tTotal, toppingId) => {
-                const topping = menuItem.toppings?.find(t => t.id === toppingId);
+                const topping = toppings.find(t => t.id === toppingId);
                 return tTotal + (topping?.price || 0);
             }, 0);
             return total + itemTotal + toppingsTotal;
@@ -103,19 +144,18 @@ export default function Component() {
         setIsSubmitting(true);
 
         const orderData: any = {
-            id: uuidv4(),
+            orderId: orderNumber,
             circleId: circleId,
             orderItems: cart,
             time: new Date().toISOString(),
             peopleCount: numberOfPeople,
             totalPrice: getTotalPrice(),
             cashier: selectedCashier?.name || '',
-            receivedAmount: receivedAmount,
-            change: change,
+            orderState: 'Pending',
         };
 
         try {
-            const response = await fetch('/api/orders', {
+            const response = await fetch(`/api/orders/${encodeURIComponent(circleName)}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -128,6 +168,7 @@ export default function Component() {
                     title: "Order Submitted",
                     description: "Your order has been successfully submitted.",
                 });
+                setOrderNumber(`${new Date().toISOString().split('T')[0]}-${uuidv4()}`);
                 setCart([]);
                 setShowOrderDialog(false);
                 setNumberOfPeople(null);
@@ -181,9 +222,9 @@ export default function Component() {
                                     }
                                 }}
                             >
-                                <img src={item.imagePath} alt={item.name} className="w-full h-32 object-cover rounded-t-lg" />
+                                <img src={item.imagePath} alt={item.menuName} className="w-full h-32 object-cover rounded-t-lg" />
                                 <CardContent className="p-4">
-                                    <h3 className="font-semibold text-lg">{item.name}</h3>
+                                    <h3 className="font-semibold text-lg">{item.menuName}</h3>
                                     <p className="text-muted-foreground">¥{item.price}</p>
                                     {item.soldOut && <Badge variant="secondary">Sold Out</Badge>}
                                 </CardContent>
@@ -225,22 +266,22 @@ export default function Component() {
                                             <Button variant="ghost" className="mr-2" onClick={() => setShowItemDialog(false)}>
                                                 <ChevronLeft className="h-6 w-6" />
                                             </Button>
-                                            {selectedItem.name}
+                                            {selectedItem.menuName}
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent>
                                         <div className="flex flex-col md:flex-row gap-4">
-                                            <img src={selectedItem.imagePath} alt={selectedItem.name} className="w-full md:w-1/2 h-48 object-cover rounded-lg mb-4" />
+                                            <img src={selectedItem.imagePath} alt={selectedItem.menuName} className="w-full md:w-1/2 h-48 object-cover rounded-lg mb-4" />
                                             <div className="flex-1">
-                                                <h2 className="text-2xl font-bold mb-2">{selectedItem.name}</h2>
+                                                <h2 className="text-2xl font-bold mb-2">{selectedItem.menuName}</h2>
                                                 <p className="text-xl mb-4">¥{selectedItem.price}</p>
                                                 <p className="text-muted-foreground mb-4">{selectedItem.description}</p>
 
-                                                {selectedItem.toppings && selectedItem.toppings.length > 0 && (
+                                                {selectedItem.toppingIds && selectedItem.toppingIds.length > 0 && (
                                                     <div className="mb-4">
                                                         <h3 className="font-semibold mb-2">Toppings</h3>
-                                                        {selectedItem.toppings.map(topping => (
-                                                            <div key={topping.id} className="flex items-center space-x-2">
+                                                        {toppings.filter(topping => selectedItem.toppingIds.includes(topping.id)).map(topping => (
+                                                            <div key={topping.id} className=" flex items-baseline space-x-2 space-y-4">
                                                                 <Checkbox
                                                                     id={`topping-${topping.id}`}
                                                                     checked={tempItem.toppingIds?.includes(topping.id)}
@@ -255,22 +296,18 @@ export default function Component() {
                                                                     }}
                                                                     disabled={topping.soldOut}
                                                                 />
-                                                                <Label htmlFor={`topping-${topping.id}`} className={topping.soldOut ? 'text-muted-foreground' : ''}>
-                                                                    {topping.name} (+¥{topping.price}) {topping.soldOut && '(Sold Out)'}
+                                                                <Label htmlFor={`topping-${topping.id}`} className={topping.soldOut ? 'text-muted-foreground text-center' : ''}>
+                                                                    {topping.toppingName} (+¥{topping.price}) {topping.soldOut && '(Sold Out)'}
                                                                 </Label>
                                                             </div>
                                                         ))}
                                                     </div>
                                                 )}
 
-                                                {Array.isArray(selectedItem.additionalInfo) && selectedItem.additionalInfo.length > 0 && (
+                                                {selectedItem.additionalInfo && (
                                                     <div className="mb-4">
                                                         <h3 className="font-semibold mb-2">Additional Information</h3>
-                                                        <ul className="list-disc list-inside">
-                                                            {selectedItem.additionalInfo.map((info, index) => (
-                                                                <li key={index} className="text-sm text-muted-foreground">{info}</li>
-                                                            ))}
-                                                        </ul>
+                                                        <p className="text-sm text-muted-foreground">{selectedItem.additionalInfo}</p>
                                                     </div>
                                                 )}
 
@@ -295,7 +332,9 @@ export default function Component() {
                                         </div>
                                     </CardContent>
                                     <CardFooter className="flex justify-between border-t p-4">
-                                        <Button variant="outline" onClick={() => setShowItemDialog(false)}>
+                                        <Button variant="outline" onClick={() =>
+
+                                            setShowItemDialog(false)}>
                                             Cancel
                                         </Button>
                                         <Button onClick={addToCart}>
@@ -325,11 +364,11 @@ export default function Component() {
                             <Card key={item.menuItemId} className="mb-4">
                                 <CardContent className="flex justify-between items-center p-4">
                                     <div>
-                                        <h3 className="font-semibold">{menuItem.name}</h3>
+                                        <h3 className="font-semibold">{menuItem.menuName}</h3>
                                         <p className="text-sm text-muted-foreground">Quantity: {item.quantity}</p>
                                         {item.toppingIds && item.toppingIds.length > 0 && (
                                             <p className="text-sm text-muted-foreground">
-                                                Toppings: {item.toppingIds.map(t => menuItem.toppings?.find(topping => topping.id === t)?.name).join(', ')}
+                                                Toppings: {item.toppingIds.map(t => toppings.find(topping => topping.id === t)?.toppingName).join(', ')}
                                             </p>
                                         )}
                                     </div>
@@ -339,7 +378,7 @@ export default function Component() {
                                             variant="ghost"
                                             size="icon"
                                             onClick={() => removeFromCart(item.menuItemId)}
-                                            aria-label={`Remove ${menuItem.name} from cart`}
+                                            aria-label={`Remove ${menuItem.menuName} from cart`}
                                         >
                                             <X className="h-4 w-4" />
                                         </Button>
@@ -434,7 +473,7 @@ export default function Component() {
             <header className="bg-primary text-primary-foreground p-4 flex items-center">
                 <h1 className="text-xl font-bold">Menu</h1>
                 <Badge variant="secondary" className="ml-auto mr-2">
-                    Order #: {orderNumber.slice(0, 8)}
+                    Order #: {orderNumber}
                 </Badge>
                 {selectedCashier && (
                     <div className="flex items-center">

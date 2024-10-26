@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { Menu, BarChart, UtensilsCrossed, ClipboardList, LogOut } from 'lucide-react'
+import { Menu, BarChart, UtensilsCrossed, ClipboardList, SmartphoneNfc } from 'lucide-react'
 import logo from '@/public/logo.png'
 
 export default function Header() {
@@ -38,9 +38,10 @@ export default function Header() {
     }, []);
 
     const navItems = [
-        { href: 'dashboard/sales', icon: <BarChart className="mr-2 h-4 w-4" />, label: 'Sales Dashboard' },
-        { href: 'dashboard/menus', icon: <UtensilsCrossed className="mr-2 h-4 w-4" />, label: 'Menu Management' },
-        { href: 'dashboard/orders', icon: <ClipboardList className="mr-2 h-4 w-4" />, label: 'Order Management' },
+        { href: '/register', icon: <SmartphoneNfc className="mr-2 h-4 w-4" />, label: 'Register' },
+        { href: '/dashboard/sales', icon: <BarChart className="mr-2 h-4 w-4" />, label: 'Sales Dashboard' },
+        { href: '/dashboard/menus', icon: <UtensilsCrossed className="mr-2 h-4 w-4" />, label: 'Menu Management' },
+        { href: '/dashboard/orders', icon: <ClipboardList className="mr-2 h-4 w-4" />, label: 'Order Management' },
     ]
 
 
@@ -71,9 +72,9 @@ export default function Header() {
                         </SheetContent>
                     </Sheet>
                 ) : null}
-                <Link href="/">
+                <div >
                     <Image src={logo} alt="FesOrder Logo" width={40} height={40} />
-                </Link>
+                </div>
                 <h1 className="text-xl font-bold">FesOrder</h1>
                 {eventName && circleName && (
                     <>

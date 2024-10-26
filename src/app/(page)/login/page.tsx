@@ -1,7 +1,8 @@
 // app/login/page.tsx
 "use client";
 import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Cookies from "js-cookie";
 
 export default function LoginPage() {
     const [eventName, setEventName] = useState("");
@@ -9,23 +10,46 @@ export default function LoginPage() {
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [circleConfirm, setCircleConfirm] = useState(false);
+    const router = useRouter();
+    const searchParams = useSearchParams();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
 
-        const res = await signIn("credentials", {
-            eventName,
-            circleName,
-            password,
-            redirect: false,
-        });
+        try {
+            const res = await fetch("/api/login", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    eventName,
+                    circleName,
+                    password,
+                }),
+            });
 
-        if (res?.error) {
+            const data = await res.json();
+
+            if (res.ok) {
+                // クッキーにデータを保存
+                Cookies.set("eventName", eventName);
+                Cookies.set("circleName", circleName);
+                Cookies.set("circleId", data.circleId);
+
+                const queryPage = searchParams.get("page") as string | undefined;
+                if (queryPage) {
+                    router.push(queryPage);
+                } else {
+                    router.push("/dashboard/sales");
+                }
+            } else {
+                setError("ログインに失敗しました。正しい情報を入力してください。");
+            }
+        } catch (error) {
+            console.error("Error logging in:", error);
             setError("ログインに失敗しました。正しい情報を入力してください。");
-        } else {
-            // ログイン成功時に確認画面を表示
-            setCircleConfirm(true);
         }
     };
 
@@ -42,8 +66,7 @@ export default function LoginPage() {
                                 value={eventName}
                                 onChange={(e) => setEventName(e.target.value)}
                                 placeholder="イベント名"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                required
+                                className="w-full px-3 py-2 border rounded-md"
                             />
                         </div>
                         <div className="mb-4">
@@ -53,8 +76,7 @@ export default function LoginPage() {
                                 value={circleName}
                                 onChange={(e) => setCircleName(e.target.value)}
                                 placeholder="サークル名"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                required
+                                className="w-full px-3 py-2 border rounded-md"
                             />
                         </div>
                         <div className="mb-4">
@@ -64,41 +86,22 @@ export default function LoginPage() {
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 placeholder="パスワード"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                required
+                                className="w-full px-3 py-2 border rounded-md"
                             />
                         </div>
                         {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
-                        <div className="flex justify-center">
-                            <button
-                                type="submit"
-                                className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition duration-200"
-                            >
-                                ログイン
-                            </button>
-                        </div>
+                        <button
+                            type="submit"
+                            className="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600"
+                        >
+                            ログイン
+                        </button>
                     </form>
                 </div>
             ) : (
                 <div className="w-full max-w-md p-8 bg-white shadow-md rounded-md">
-                    <h1 className="text-2xl font-bold text-center mb-6">サークル名確認</h1>
-                    <p className="text-center text-gray-700 mb-4">
-                        あなたのサークル名は <strong>{circleName}</strong> です。これでよろしいですか？
-                    </p>
-                    <div className="flex justify-around">
-                        <button
-                            className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition duration-200"
-                            onClick={() => (window.location.href = "/protected")}
-                        >
-                            はい
-                        </button>
-                        <button
-                            className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 transition duration-200"
-                            onClick={() => setCircleConfirm(false)}
-                        >
-                            いいえ
-                        </button>
-                    </div>
+                    <h1 className="text-2xl font-bold text-center mb-6">ログイン成功</h1>
+                    <p className="text-center">サークルの確認が完了しました。</p>
                 </div>
             )}
         </div>

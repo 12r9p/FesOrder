@@ -26,7 +26,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     try {
         const response = await notion.pages.retrieve({ page_id: id });
         const properties = response.properties;
-        
+
 
         const circle: Circle = {
             id: response.id,

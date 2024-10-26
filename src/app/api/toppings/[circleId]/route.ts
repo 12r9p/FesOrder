@@ -52,21 +52,27 @@ export async function GET(req: NextRequest, { params }: { params: { circleId: st
     }
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(
+    req: NextRequest,
+    { params }: { params: { circleId: string } }
+) {
+    const { circleId } = params
+
+    if (!circleId) {
+        return NextResponse.json(
+            { error: "circleId is required" },
+            { status: 400 }
+        );
+    }
     try {
-        const { circleId, toppingName, price, description, soldOut } = await req.json();
+        const { id, toppingName, price, description, soldOut } =
+            await req.json();
 
         const response = await notion.pages.create({
             parent: { database_id: NOTION_DATABASE_TOPPINGS },
             properties: {
-                circleId: {
-                    rich_text: [
-                        {
-                            text: {
-                                content: circleId,
-                            },
-                        },
-                    ],
+                circle: {
+                    relation: [{ id: circleId }],
                 },
                 toppingName: {
                     title: [
@@ -109,10 +115,22 @@ export async function PATCH(req: NextRequest, { params }: { params: { circleId: 
     const { circleId } = params;
 
     try {
-        const { toppingName, price, description, soldOut } = await req.json();
+        const { id, toppingName, price, description, soldOut } = await req.json();
+        if (
+            !toppingName ||
+            !price ||
+            !description ||
+            typeof soldOut === "undefined"
+        ) {
+            console.log(req.json());
+            return NextResponse.json(
+                { error: "Invalid request data" },
+                { status: 400 }
+            );
+        }
 
         const response = await notion.pages.update({
-            page_id: circleId,
+            page_id: id,
             properties: {
                 toppingName: {
                     title: [

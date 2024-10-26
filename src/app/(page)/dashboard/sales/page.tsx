@@ -1,13 +1,13 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import "@/app/globals.css"
-import { useParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
+import Cookies from 'js-cookie'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, RefreshCw } from "lucide-react"
-import { Bar, Line } from 'react-chartjs-2'
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Loader2, RefreshCw } from "lucide-react"
+import { Bar, Line } from 'react-chartjs-2'
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -33,90 +33,83 @@ ChartJS.register(
     Legend
 )
 
-interface OrderItem {
-    menuItemId: string
-    quantity: number
-    toppingIds: string[]
-}
-
 interface Order {
     id: string
+    orderId: string
     orderItems: string
+    totalPrice: number
     peopleCount: number
-    amount: number
-    createdAt: string
-}
-
-interface SalesData {
-    totalAmount: number
-    orders: Order[]
-}
-
-interface DateRange {
-    startDate?: Date;
-    endDate?: Date;
-    from?: Date|undefined
-    to?: Date
-}
-
-interface MenuItemSales {
-    [key: string]: { quantity: number; amount: number }
-}
-
-interface ToppingSales {
-    [key: string]: number
+    time: string
+    cashier: string
+    orderState: string
 }
 
 interface MenuItem {
     id: string
-    name: string
-    toppings: { id: string; name: string }[]
+    menuName: string
+    price: number
+    imagePath: string
+    toppings: string[]
+    description: string
+    additionalInfo: string
+    soldOut: boolean
 }
 
-export default function EnhancedSalesDashboard() {
-    const { eventName, circleName } = useParams()
-    const [salesData, setSalesData] = useState<SalesData | null>(null)
+interface Topping {
+    id: string
+    toppingName: string
+    price: number
+    description: string
+    soldOut: boolean
+}
+
+export default function Component() {
+    const [circleId, setCircleId] = useState<string | null>(null)
+    const [orders, setOrders] = useState<Order[]>([])
     const [menuItems, setMenuItems] = useState<MenuItem[]>([])
+    const [toppings, setToppings] = useState<Topping[]>([])
     const [loading, setLoading] = useState(true)
     const [timeRange, setTimeRange] = useState('daily')
-    const [dateRange, setDateRange] = useState<DateRange>({ startDate: new Date(), endDate: new Date() });
+    const router = useRouter()
 
-    const fetchSalesData = useCallback(async () => {
+    const fetchData = useCallback(async () => {
         setLoading(true)
         try {
-            const circleId = document.cookie
-                .split('; ')
-                .find(row => row.startsWith('circleId='))
-                ?.split('=')[1];
-
-            if (!circleId) {
-                window.location.href = '/login';
+            const storedCircleId = Cookies.get('circleId')
+            if (!storedCircleId) {
+                router.push('/login?page=/dashboard/sales')
+                return
             }
+            setCircleId(storedCircleId)
 
-            const salesResponse = await fetch(`/api/sales?circleId=${encodeURIComponent(circleId)}`)
-            const salesData = await salesResponse.json()
-            setSalesData(salesData)
+            const [ordersRes, menuItemsRes, toppingsRes] = await Promise.all([
+                fetch(`/api/orders/${storedCircleId}`),
+                fetch(`/api/menus/${storedCircleId}`),
+                fetch(`/api/toppings/${storedCircleId}`)
+            ])
 
-            const menusResponse = await fetch(`/api/menus?circleId=${encodeURIComponent(circleId)}`)
-            const menusData = await menusResponse.json()
-            if (menusResponse.ok) {
-                setMenuItems(menusData)
-            } else {
-                console.error('Error fetching menu items:', menusData.error)
-            }
+            const [ordersData, menuItemsData, toppingsData] = await Promise.all([
+                ordersRes.json(),
+                menuItemsRes.json(),
+                toppingsRes.json()
+            ])
+
+            setOrders(ordersData)
+            setMenuItems(menuItemsData)
+            setToppings(toppingsData)
         } catch (error) {
-            console.error('Error fetching sales data:', error)
+            console.error('Error fetching data:', error)
         } finally {
             setLoading(false)
         }
-    }, [eventName, circleName])
+    }, [router])
 
     useEffect(() => {
-        fetchSalesData()
-    }, [fetchSalesData])
+        fetchData()
+    }, [fetchData])
 
     const handleRefresh = () => {
-        fetchSalesData()
+        fetchData()
     }
 
     if (loading) {
@@ -127,96 +120,81 @@ export default function EnhancedSalesDashboard() {
         )
     }
 
-    if (!salesData) {
-        return <div>Error loading sales data.</div>
-    }
-
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(amount)
     }
 
-    const getMenuItemName = (id: string) => {
-        const menuItem = menuItems.find(item => item.id === id)
-        return menuItem ? menuItem.name : id
+    const getTotalSales = () => {
+        return orders.reduce((total, order) => total + order.totalPrice, 0)
     }
 
-    const getToppingName = (id: string) => {
-        for (const menuItem of menuItems) {
-            const topping = menuItem.toppings.find(t => t.id === id)
-            if (topping) return topping.name
-        }
-        return id
+    const getTotalCustomers = () => {
+        return orders.reduce((total, order) => total + order.peopleCount, 0)
+    }
+
+    const getAverageOrderValue = () => {
+        const totalSales = getTotalSales()
+        return orders.length > 0 ? totalSales / orders.length : 0
     }
 
     const processOrdersData = (orders: Order[], range: string) => {
         const totals: { [key: string]: number } = {}
-        const menuItemSales: MenuItemSales = {}
-        const toppingSales: ToppingSales = {}
+        const menuItemSales: { [key: string]: { quantity: number; amount: number } } = {}
+        const toppingSales: { [key: string]: number } = {}
         const hourlyOrderCounts: { [key: string]: number } = {}
-        let totalCustomers = 0
-        const uniqueCustomerSets: { [key: string]: Set<string> } = {}
 
         orders.forEach(order => {
-            const date = new Date(order.createdAt)
-            totalCustomers += order.peopleCount;
+            const date = new Date(order.time)
+            let key
 
-                let key
-                switch (range) {
-                    case 'hourly':
-                        key = `${date.toISOString().split('T')[0]} ${date.getHours().toString().padStart(2, '0')}:00`
-                        break
-                    case 'daily':
-                        key = date.toISOString().split('T')[0]
-                        break
-                    case 'weekly':
-                        const weekStart = new Date(date)
-                        weekStart.setDate(date.getDate() - date.getDay())
-                        key = weekStart.toISOString().split('T')[0]
-                        break
-                    case 'monthly':
-                        key = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`
-                        break
-                }
-                if (key !== undefined) {
-                    totals[key] = (totals[key] || 0) + order.amount
-                }
+            switch (range) {
+                case 'hourly':
+                    key = `${date.toISOString().split('T')[0]} ${date.getHours().toString().padStart(2, '0')}:00`
+                    break
+                case 'daily':
+                    key = date.toISOString().split('T')[0]
+                    break
+                case 'weekly':
+                    const weekStart = new Date(date)
+                    weekStart.setDate(date.getDate() - date.getDay())
+                    key = weekStart.toISOString().split('T')[0]
+                    break
+                case 'monthly':
+                    key = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`
+                    break
+            }
 
-                // Process order items
-                const orderItems: OrderItem[] = JSON.parse(order.orderItems)
-                orderItems.forEach(item => {
-                    const menuItemName = getMenuItemName(item.menuItemId)
-                    if (!menuItemSales[menuItemName]) {
-                        menuItemSales[menuItemName] = { quantity: 0, amount: 0 }
+            if (key) {
+                totals[key] = (totals[key] || 0) + order.totalPrice
+            }
+
+            const orderItems = JSON.parse(order.orderItems)
+            orderItems.forEach((item: { menuItemId: string; quantity: number; toppingIds: string[] }) => {
+                const menuItem = menuItems.find(m => m.id === item.menuItemId)
+                if (menuItem) {
+                    if (!menuItemSales[menuItem.menuName]) {
+                        menuItemSales[menuItem.menuName] = { quantity: 0, amount: 0 }
                     }
-                    menuItemSales[menuItemName].quantity += item.quantity
-                    menuItemSales[menuItemName].amount += (order.amount / orderItems.length) * item.quantity
+                    menuItemSales[menuItem.menuName].quantity += item.quantity
+                    menuItemSales[menuItem.menuName].amount += menuItem.price * item.quantity
 
                     item.toppingIds.forEach(toppingId => {
-                        const toppingName = getToppingName(toppingId)
-                        toppingSales[toppingName] = (toppingSales[toppingName] || 0) + item.quantity
+                        const topping = toppings.find(t => t.id === toppingId)
+                        if (topping) {
+                            toppingSales[topping.toppingName] = (toppingSales[topping.toppingName] || 0) + item.quantity
+                        }
                     })
-                })
-
-                // Count unique customers per time period
-                if (key !== undefined) {
-                    if (!uniqueCustomerSets[key]) {
-                        uniqueCustomerSets[key] = new Set()
-                    }
-                    uniqueCustomerSets[key].add(order.id)
-
-                    // Count hourly orders
-                    const hourKey = `${date.getHours().toString().padStart(2, '0')}:00`
-                    if (hourKey !== undefined) {
-                        hourlyOrderCounts[hourKey] = (hourlyOrderCounts[hourKey] || 0) + 1
-                    }
                 }
-            }
-        )
+            })
 
-        return { totals, menuItemSales, toppingSales, totalCustomers, hourlyOrderCounts }
+            const hourKey = `${date.getHours().toString().padStart(2, '0')}:00`
+            hourlyOrderCounts[hourKey] = (hourlyOrderCounts[hourKey] || 0) + 1
+        })
+
+        return { totals, menuItemSales, toppingSales, hourlyOrderCounts }
     }
 
-    const { totals, menuItemSales, toppingSales, totalCustomers, hourlyOrderCounts } = processOrdersData(salesData.orders, timeRange)
+    const { totals, menuItemSales, toppingSales, hourlyOrderCounts } = processOrdersData(orders, timeRange)
 
     const chartData = {
         labels: Object.keys(totals).sort(),
@@ -276,14 +254,14 @@ export default function EnhancedSalesDashboard() {
                 </Button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 <Card>
                     <CardHeader>
                         <CardTitle>Total Sales</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <p className="text-4xl font-bold text-center text-primary">
-                            {formatCurrency(salesData.totalAmount)}
+                            {formatCurrency(getTotalSales())}
                         </p>
                     </CardContent>
                 </Card>
@@ -294,7 +272,7 @@ export default function EnhancedSalesDashboard() {
                     </CardHeader>
                     <CardContent>
                         <p className="text-4xl font-bold text-center text-primary">
-                            {totalCustomers}
+                            {getTotalCustomers()}
                         </p>
                     </CardContent>
                 </Card>
@@ -305,15 +283,15 @@ export default function EnhancedSalesDashboard() {
                     </CardHeader>
                     <CardContent>
                         <p className="text-4xl font-bold text-center text-primary">
-                            {formatCurrency(salesData.totalAmount / salesData.orders.length)}
+                            {formatCurrency(getAverageOrderValue())}
                         </p>
                     </CardContent>
                 </Card>
             </div>
 
-            <div className="flex flex-col md:flex-row justify-between items-center mb-4">
+            <div className="flex justify-end mb-4">
                 <Select value={timeRange} onValueChange={setTimeRange}>
-                    <SelectTrigger className="w-[180px] mb-4 md:mb-0">
+                    <SelectTrigger className="w-[180px]">
                         <SelectValue placeholder="Select time range" />
                     </SelectTrigger>
                     <SelectContent>
@@ -393,25 +371,19 @@ export default function EnhancedSalesDashboard() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {salesData.orders.slice(0, 10).map((order) => (
-                                    <tr key={order.id} className="bg-white border-b  dark:bg-gray-800 dark:border-gray-700">
-                                        <td className="px-6 py-4">{order.id.slice(0, 8)}...</td>
+                                {orders.slice(0, 10).map((order) => (
+                                    <tr key={order.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
+                                        <td className="px-6 py-4">{order.orderId}</td>
                                         <td className="px-6 py-4">
-                                            {JSON.parse(order.orderItems).map((item: OrderItem) =>
-                                                `${item.quantity}x ${getMenuItemName(item.menuItemId)}`
-                                            ).join(', ')}
+                                            {JSON.parse(order.orderItems).map((item: { menuItemId: string; quantity: number }) => {
+                                                const menuItem = menuItems.find(m => m.id === item.menuItemId)
+                                                return menuItem ? `${item.quantity}x ${menuItem.menuName}` : ''
+                                            }).join(', ')}
                                         </td>
-                                        <td className="px-6 py-4">{formatCurrency(order.amount)}</td>
-                                        <td className="px-6 py-4">{new Date(order.createdAt).toLocaleString('ja-JP')}</td>
+                                        <td className="px-6 py-4">{formatCurrency(order.totalPrice)}</td>
+                                        <td className="px-6 py-4">{new Date(order.time).toLocaleString('ja-JP')}</td>
                                     </tr>
                                 ))}
-                                <tr>
-                                    <td colSpan={4} className="text-center py-4">
-                                        <Button onClick={() => window.location.href = '/dashboard/orders'}>
-                                            全ての注文
-                                        </Button>
-                                    </td>
-                                </tr>
                             </tbody>
                         </table>
                     </div>

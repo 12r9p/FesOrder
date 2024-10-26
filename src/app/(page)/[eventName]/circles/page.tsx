@@ -82,14 +82,14 @@ const CirclesPage = () => {
             }
 
             try {
-                const response = await fetch(`/api/events?eventName=${encodeURIComponent(eventName)}`);
+                const response = await fetch(`/api/event/${encodeURIComponent(eventName)}`);
                 const data = await response.json();
-                if (response.ok) {
+                if (true) {
                     const circleDetails = await Promise.all(
-                        data.map(async (circle: { circleId: string }) => {
-                            const circleResponse = await fetch(`/api/circles?circleId=${encodeURIComponent(circle.circleId)}`);
+                        data.circleId.map(async (circleId: string) => {
+                            const circleResponse = await fetch(`/api/circle/${encodeURIComponent(circleId)}`);
                             if (!circleResponse.ok) {
-                                throw new Error(`Failed to fetch circle details for ${circle.circleId}`);
+                                throw new Error(`Failed to fetch circle details for ${circleId}`);
                             }
                             return await circleResponse.json();
                         })
