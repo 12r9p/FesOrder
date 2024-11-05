@@ -19,7 +19,6 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
     DialogFooter,
 } from "@/components/ui/dialog"
 import {
@@ -54,6 +53,7 @@ interface Order {
     time: string
     cashier: string
     orderState: string
+    isCompleted: boolean
 }
 
 interface MenuItem {
@@ -76,7 +76,7 @@ export default function Component() {
     const [loading, setLoading] = useState(true)
     const [sortField, setSortField] = useState<keyof Order>('time')
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
-    const [filterField, setFilterField] = useState<string | null>(null)
+    const [filterField, setFilterField] = useState<any>(null)
     const [filterValue, setFilterValue] = useState<string>('')
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
     const [editingOrderItems, setEditingOrderItems] = useState<OrderItem[]>([])
@@ -89,7 +89,7 @@ export default function Component() {
     const fetchOrders = useCallback(async () => {
         setLoading(true)
         try {
-            const storedCircleId = Cookies.get('circleId')
+            const storedCircleId = "09e6beabe3504beeb6b51d9efa7d3e6f";
             if (!storedCircleId) {
                 router.push('/login?page=/dashboard/orders')
                 return
@@ -97,8 +97,17 @@ export default function Component() {
             setCircleId(storedCircleId)
 
             const response = await fetch(`/api/orders/${storedCircleId}`)
-            const data = await response.json()
-            setOrders(data)
+            const newOrders = await response.json()
+
+            setOrders(prevOrders => {
+                const existingOrderIds = new Set(prevOrders.map(order => order.id))
+                const newOrdersToAdd = newOrders.filter((newOrder: Order) => !existingOrderIds.has(newOrder.id))
+                const updatedExistingOrders = prevOrders.map(existingOrder => {
+                    const updatedOrder = newOrders.find((newOrder: Order) => newOrder.id === existingOrder.id)
+                    return updatedOrder ? { ...updatedOrder, isCompleted: existingOrder.isCompleted } : existingOrder
+                })
+                return [...newOrdersToAdd, ...updatedExistingOrders]
+            })
         } catch (error) {
             console.error('Error fetching orders:', error)
         } finally {
@@ -137,6 +146,15 @@ export default function Component() {
         }
     }, [circleId, fetchMenuItems, fetchToppings])
 
+    // Auto-refresh orders every minute
+    useEffect(() => {
+        const intervalId = setInterval(() => {
+            fetchOrders()
+        }, 30000) // 60000 ms = 1 minute
+
+        return () => clearInterval(intervalId)
+    }, [fetchOrders])
+
     const handleSort = (field: keyof Order) => {
         if (field === sortField) {
             setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
@@ -149,8 +167,8 @@ export default function Component() {
     const handleFilter = () => {
         if (!filterField || filterField === 'none' || !filterValue) return orders
 
-        return orders.filter((order) => {
-            const orderValue = order[filterField]
+        return orders.filter((order:any) => {
+            const orderValue:any = order[filterField]
             if (typeof orderValue === 'string') {
                 return orderValue.toLowerCase().includes(filterValue.toLowerCase())
             } else if (typeof orderValue === 'number') {
@@ -181,7 +199,11 @@ export default function Component() {
                 body: JSON.stringify(updatedOrder),
             })
             if (response.ok) {
-                fetchOrders()
+                setOrders(prevOrders =>
+                    prevOrders.map(order =>
+                        order.id === updatedOrder.id ? updatedOrder : order
+                    )
+                )
                 setIsDialogOpen(false)
             } else {
                 console.error('Failed to update order')
@@ -199,7 +221,8 @@ export default function Component() {
                 body: JSON.stringify({ ...newOrder, circleId }),
             })
             if (response.ok) {
-                fetchOrders()
+                const createdOrder = await response.json()
+                setOrders(prevOrders => [createdOrder, ...prevOrders])
                 setIsDialogOpen(false)
             } else {
                 console.error('Failed to create order')
@@ -224,7 +247,7 @@ export default function Component() {
                 body: JSON.stringify({ id: orderToDelete }),
             })
             if (response.ok) {
-                fetchOrders()
+                setOrders(prevOrders => prevOrders.filter(order => order.id !== orderToDelete))
                 setIsDeleteDialogOpen(false)
                 setOrderToDelete(null)
             } else {
@@ -258,6 +281,14 @@ export default function Component() {
             }, 0)
             return total + (menuItem ? (menuItem.price + toppingPrice) * item.quantity : 0)
         }, 0)
+    }
+
+    const handleCompletionToggle = (orderId: string, isCompleted: boolean) => {
+        setOrders(prevOrders =>
+            prevOrders.map(order =>
+                order.id === orderId ? { ...order, isCompleted } : order
+            )
+        )
     }
 
     if (loading) {
@@ -300,7 +331,14 @@ export default function Component() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {sortedAndFilteredOrders.map((order) => (
-                    <Card key={order.id} className="cursor-pointer" onClick={() => handleOrderClick(order)}>
+                    <Card
+                        key={order.id}
+                        className={cn(
+                            "cursor-pointer",
+                            order.isCompleted && "opacity-50"
+                        )}
+                        onClick={() => handleOrderClick(order)}
+                    >
                         <CardHeader>
                             <CardTitle className="flex justify-between items-center">
                                 <span>Order #{order.orderId}</span>
@@ -308,8 +346,16 @@ export default function Component() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            
-                            <p>Total: ¥{order.totalPrice}</p>
+                            <div className="flex justify-between items-center mb-2">
+                                <p>Total: ¥{order.totalPrice}</p>
+                                <Checkbox
+                                    checked={order.isCompleted}
+                                    onCheckedChange={(checked) => {
+                                        handleCompletionToggle(order.id, checked as boolean)
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                />
+                            </div>
                             <p>People: {order.peopleCount}</p>
                             <p>Time: {new Date(order.time).toLocaleString()}</p>
                             <p>Cashier: {order.cashier}</p>
@@ -334,6 +380,7 @@ export default function Component() {
                                 className="mt-2"
                                 onClick={(e) => {
                                     e.stopPropagation()
+
                                     handleOrderDelete(order.id)
                                 }}
                             >
@@ -362,6 +409,7 @@ export default function Component() {
                                 time: date?.toISOString() ?? new Date().toISOString(),
                                 cashier: formData.get('cashier') as string,
                                 orderState: formData.get('orderState') as string,
+                                isCompleted: selectedOrder?.isCompleted ?? false,
                             }
                             if (selectedOrder) {
                                 handleOrderUpdate(orderData as Order)
@@ -380,7 +428,7 @@ export default function Component() {
                                 />
                             </div>
                             <div className="flex flex-col gap-2">
-                                <Label  htmlFor="peopleCount">People Count</Label>
+                                <Label htmlFor="peopleCount">People Count</Label>
                                 <Input
                                     id="peopleCount"
                                     name="peopleCount"

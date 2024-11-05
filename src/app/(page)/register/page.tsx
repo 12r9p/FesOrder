@@ -93,7 +93,7 @@ export default function Component() {
 
 
     useEffect(() => {
-        const circleId = Cookies.get('circleId');
+        const circleId = "09e6beabe3504beeb6b51d9efa7d3e6f";
         const circleName: string | undefined = Cookies.get('circleName');
         const eventName: string | undefined = Cookies.get('eventName');
         if (circleId && circleName && eventName ) {

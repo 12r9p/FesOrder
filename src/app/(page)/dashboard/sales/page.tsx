@@ -63,6 +63,13 @@ interface Topping {
     soldOut: boolean
 }
 
+interface ToppingUsage {
+    [menuItem: string]: {
+        [topping: string]: number
+        totalOrders: number
+    }
+}
+
 export default function Component() {
     const [circleId, setCircleId] = useState<string | null>(null)
     const [orders, setOrders] = useState<Order[]>([])
@@ -75,7 +82,7 @@ export default function Component() {
     const fetchData = useCallback(async () => {
         setLoading(true)
         try {
-            const storedCircleId = Cookies.get('circleId')
+            const storedCircleId = "09e6beabe3504beeb6b51d9efa7d3e6f";
             if (!storedCircleId) {
                 router.push('/login?page=/dashboard/sales')
                 return
@@ -133,15 +140,16 @@ export default function Component() {
     }
 
     const getAverageOrderValue = () => {
-        const totalSales = getTotalSales()
-        return orders.length > 0 ? totalSales / orders.length : 0
+        return orders.length
     }
 
     const processOrdersData = (orders: Order[], range: string) => {
         const totals: { [key: string]: number } = {}
-        const menuItemSales: { [key: string]: { quantity: number; amount: number } } = {}
-        const toppingSales: { [key: string]: number } = {}
+        const menuItemSales: { [key: string]: number } = {}
+        const toppingUsage: ToppingUsage = {}
         const hourlyOrderCounts: { [key: string]: number } = {}
+        const cashierSales: { [key: string]: number } = {}
+        let totalToppings = 0
 
         orders.forEach(order => {
             const date = new Date(order.time)
@@ -172,16 +180,18 @@ export default function Component() {
             orderItems.forEach((item: { menuItemId: string; quantity: number; toppingIds: string[] }) => {
                 const menuItem = menuItems.find(m => m.id === item.menuItemId)
                 if (menuItem) {
-                    if (!menuItemSales[menuItem.menuName]) {
-                        menuItemSales[menuItem.menuName] = { quantity: 0, amount: 0 }
+                    menuItemSales[menuItem.menuName] = (menuItemSales[menuItem.menuName] || 0) + item.quantity
+
+                    if (!toppingUsage[menuItem.menuName]) {
+                        toppingUsage[menuItem.menuName] = { totalOrders: 0 }
                     }
-                    menuItemSales[menuItem.menuName].quantity += item.quantity
-                    menuItemSales[menuItem.menuName].amount += menuItem.price * item.quantity
+                    toppingUsage[menuItem.menuName].totalOrders += item.quantity
 
                     item.toppingIds.forEach(toppingId => {
                         const topping = toppings.find(t => t.id === toppingId)
                         if (topping) {
-                            toppingSales[topping.toppingName] = (toppingSales[topping.toppingName] || 0) + item.quantity
+                            toppingUsage[menuItem.menuName][topping.toppingName] = (toppingUsage[menuItem.menuName][topping.toppingName] || 0) + item.quantity
+                            totalToppings += item.quantity
                         }
                     })
                 }
@@ -189,12 +199,14 @@ export default function Component() {
 
             const hourKey = `${date.getHours().toString().padStart(2, '0')}:00`
             hourlyOrderCounts[hourKey] = (hourlyOrderCounts[hourKey] || 0) + 1
+
+            cashierSales[order.cashier] = (cashierSales[order.cashier] || 0) + order.totalPrice
         })
 
-        return { totals, menuItemSales, toppingSales, hourlyOrderCounts }
+        return { totals, menuItemSales, toppingUsage, hourlyOrderCounts, cashierSales, totalToppings }
     }
 
-    const { totals, menuItemSales, toppingSales, hourlyOrderCounts } = processOrdersData(orders, timeRange)
+    const { totals, menuItemSales, toppingUsage, hourlyOrderCounts, cashierSales, totalToppings } = processOrdersData(orders, timeRange)
 
     const chartData = {
         labels: Object.keys(totals).sort(),
@@ -213,20 +225,9 @@ export default function Component() {
         labels: Object.keys(menuItemSales),
         datasets: [
             {
-                label: 'Sales Amount',
-                data: Object.values(menuItemSales).map(item => item.amount),
-                backgroundColor: 'rgba(255, 99, 132, 0.8)',
-            },
-        ],
-    }
-
-    const toppingChartData = {
-        labels: Object.keys(toppingSales),
-        datasets: [
-            {
                 label: 'Quantity Sold',
-                data: Object.values(toppingSales),
-                backgroundColor: 'rgba(75, 192, 192, 0.8)',
+                data: Object.values(menuItemSales),
+                backgroundColor: 'rgba(255, 99, 132, 0.8)',
             },
         ],
     }
@@ -243,6 +244,10 @@ export default function Component() {
             },
         ],
     }
+
+    const cashierRankingData = Object.entries(cashierSales)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 5)
 
     return (
         <div className="container mx-auto p-4">
@@ -279,11 +284,11 @@ export default function Component() {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Average Order Value</CardTitle>
+                        <CardTitle>Total Orders</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <p className="text-4xl font-bold text-center text-primary">
-                            {formatCurrency(getAverageOrderValue())}
+                            {getAverageOrderValue()}
                         </p>
                     </CardContent>
                 </Card>
@@ -309,19 +314,28 @@ export default function Component() {
                         <CardTitle>Sales Over Time</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="h-[300px]">
-                            {timeRange === 'hourly' ? (
-                                <Line data={chartData} options={{ responsive: true, maintainAspectRatio: false }} />
-                            ) : (
-                                <Bar data={chartData} options={{ responsive: true, maintainAspectRatio: false }} />
-                            )}
+                        <div className="h-[300px] w-full">
+                            <Line
+                                data={chartData}
+                                options={{
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    scales: {
+                                        x: {
+                                            ticks: {
+                                                maxTicksLimit: 20
+                                            }
+                                        }
+                                    }
+                                }}
+                            />
                         </div>
                     </CardContent>
                 </Card>
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Menu Item Sales</CardTitle>
+                        <CardTitle>Menu Item Sales (Quantity)</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="h-[300px]">
@@ -331,25 +345,103 @@ export default function Component() {
                 </Card>
             </div>
 
+            <Card className="mb-8">
+                <CardHeader>
+                    <CardTitle>Topping Usage by Menu Item</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                            <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                                <tr>
+                                    <th scope="col" className="px-6 py-3">Menu Item</th>
+                                    {toppings.map(topping => (
+                                        <th key={topping.id} scope="col" className="px-6 py-3">{topping.toppingName}</th>
+                                    ))}
+                                    <th scope="col" className="px-6 py-3">Total Orders</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {Object.entries(toppingUsage).map(([menuItem, usage]) => (
+                                    <tr key={menuItem} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
+                                        <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{menuItem}</td>
+                                        {toppings.map(topping => (
+                                            <td key={topping.id} className="px-6 py-4">
+                                                {usage[topping.toppingName] ?
+                                                    `${((usage[topping.toppingName] / usage.totalOrders) * 100).toFixed(2)}% (${usage[topping.toppingName]})` :
+                                                    '0%'}
+                                            </td>
+                                        ))}
+                                        <td className="px-6 py-4">{usage.totalOrders}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card className="mb-8">
+                <CardHeader>
+                    <CardTitle>Total Topping Usage</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-2xl font-bold text-center text-primary">
+                        {totalToppings}
+                    </p>
+                </CardContent>
+            </Card>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Topping Sales</CardTitle>
+                        <CardTitle>Hourly Order Count</CardTitle>
                     </CardHeader>
+
                     <CardContent>
-                        <div className="h-[300px]">
-                            <Bar data={toppingChartData} options={{ responsive: true, maintainAspectRatio: false }} />
+                        <div className="h-[300px] w-full">
+                            <Line
+                                data={hourlyOrderChartData}
+                                options={{
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    scales: {
+                                        x: {
+                                            ticks: {
+                                                maxTicksLimit: 24
+                                            }
+                                        }
+                                    }
+                                }}
+                            />
                         </div>
                     </CardContent>
                 </Card>
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Hourly Order Count</CardTitle>
+                        <CardTitle>Cashier Ranking</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="h-[300px]">
-                            <Line data={hourlyOrderChartData} options={{ responsive: true, maintainAspectRatio: false }} />
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                                <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                                    <tr>
+                                        <th scope="col" className="px-6 py-3">Rank</th>
+                                        <th scope="col" className="px-6 py-3">Cashier</th>
+                                        <th scope="col" className="px-6 py-3">Total Sales</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {cashierRankingData.map(([cashier, sales], index) => (
+                                        <tr key={cashier} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
+                                            <td className="px-6 py-4">{index + 1}</td>
+                                            <td className="px-6 py-4">{cashier}</td>
+                                            <td className="px-6 py-4">{formatCurrency(sales)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     </CardContent>
                 </Card>
