@@ -58,7 +58,7 @@ export default function MenuManagement() {
         }
         setCircleId(circleId)
         try {
-            const circleId = Cookies.get('circleId');
+            const circleId = "09e6beabe3504beeb6b51d9efa7d3e6f";
 
             if (!circleId) {
             window.location.href = '/login';
