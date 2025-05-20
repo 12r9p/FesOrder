@@ -1,36 +1,35 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FesOrder
 
-## Getting Started
+## 概要
+2024年茨城高専2-1で使用した注文管理システムです。
 
-First, run the development server:
+## 特徴
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- シンプルなUIで直感的に操作可能
+- 注文・売上・メニューの管理機能を搭載
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 動作環境
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- ブラウザ上
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# スクリーンショット
 
-## Learn More
+## レジ画面
+![レジ画面1](readme_pictures/Capture-2025-05-20-235641.png)
+![レジ画面2](readme_pictures/2025-05-210.10.42.png)
+![レジ画面3](readme_pictures/2025-05-210.11.09.png)
 
-To learn more about Next.js, take a look at the following resources:
+## ナビゲーション
+![ナビゲーション](readme_pictures/Capture-2025-05-20-235724.png)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 売上管理
+![売上管理](readme_pictures/Capture-2025-05-20-235748.png)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## メニュー管理
+![メニュー管理](readme_pictures/Capture-2025-05-20-235807.png)
 
-## Deploy on Vercel
+## メニュー編集
+![メニュー編集](readme_pictures/2025-05-2023.58.26.png)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 注文管理
+![注文管理](readme_pictures/2025-05-2023.58.39.png)
