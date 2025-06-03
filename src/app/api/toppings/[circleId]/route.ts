@@ -9,8 +9,10 @@ dotenv.config();
 const notion = new Client({ auth: process.env.NOTION_API_TOKEN });
 const NOTION_DATABASE_TOPPINGS = process.env.NOTION_DATABASE_TOPPINGS!;
 
-
-export async function GET(req: NextRequest, { params }: { params: { circleId: string } }) {
+export async function GET(
+    req: NextRequest,
+    { params }: { params: { circleId: string } }
+) {
     const { circleId } = params;
 
     if (!circleId) {
@@ -31,16 +33,21 @@ export async function GET(req: NextRequest, { params }: { params: { circleId: st
             },
         });
 
-        const toppings: Topping[] = (response.results || []).map((result: any) => {
-            const properties = result.properties;
-            return {
-                id: result.id,
-                toppingName: properties.toppingName.title[0]?.text?.content || "",
-                price: properties.price.number,
-                description: properties.description?.rich_text[0]?.text?.content || "",
-                soldOut: properties.soldOut.checkbox,
-            };
-        });
+        const toppings: Topping[] = (response.results || []).map(
+            (result: any) => {
+                const properties = result.properties;
+                return {
+                    id: result.id,
+                    toppingName:
+                        properties.toppingName.title[0]?.text?.content || "",
+                    price: properties.price.number,
+                    description:
+                        properties.description?.rich_text[0]?.text?.content ||
+                        "",
+                    soldOut: properties.soldOut.checkbox,
+                };
+            }
+        );
 
         return NextResponse.json(toppings);
     } catch (error) {
@@ -56,7 +63,7 @@ export async function POST(
     req: NextRequest,
     { params }: { params: { circleId: string } }
 ) {
-    const { circleId } = params
+    const { circleId } = params;
 
     if (!circleId) {
         return NextResponse.json(
@@ -65,8 +72,13 @@ export async function POST(
         );
     }
     try {
-        const { id, toppingName, price, description, soldOut } =
-            await req.json();
+        const {
+            id: _id,
+            toppingName,
+            price,
+            description,
+            soldOut,
+        } = await req.json();
 
         const response = await notion.pages.create({
             parent: { database_id: NOTION_DATABASE_TOPPINGS },
@@ -111,18 +123,21 @@ export async function POST(
     }
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { circleId: string } }) {
-    const { circleId } = params;
+export async function PATCH(
+    req: NextRequest,
+    { params }: { params: { circleId: string } }
+) {
+    const { circleId: _circleId } = params;
 
     try {
-        const { id, toppingName, price, description, soldOut } = await req.json();
+        const { id, toppingName, price, description, soldOut } =
+            await req.json();
         if (
             !toppingName ||
             !price ||
             !description ||
             typeof soldOut === "undefined"
         ) {
-            console.log(req.json());
             return NextResponse.json(
                 { error: "Invalid request data" },
                 { status: 400 }
@@ -169,7 +184,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { circleId: 
     }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { circleId: string } }) {
+export async function DELETE(
+    req: NextRequest,
+    { params }: { params: { circleId: string } }
+) {
     const { circleId } = params;
 
     try {

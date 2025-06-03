@@ -1,39 +1,33 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { Client } from '@notionhq/client';
+import { NextRequest, NextResponse } from "next/server";
+import { Client } from "@notionhq/client";
+import { Circle } from "@/types/interfaces";
 import dotenv from "dotenv";
-
 
 dotenv.config();
 
 const notion = new Client({ auth: process.env.NOTION_API_TOKEN });
 const NOTION_DATABASE_CIRCLES = process.env.NOTION_DATABASE_CIRCLES;
 
-interface Circle {
-    id: string;
-    circleName: string;
-    description?: string;
-    iconImagePath?: string;
-    backgroundImagePath?: string;
-}
-
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(
+    req: NextRequest,
+    { params }: { params: { id: string } }
+) {
     // if (!params) {
     //     return NextResponse.json({ error: "id is required" }, { status: 400 });
     // }
     const { id } = params;
 
-
     try {
-        const response:any = await notion.pages.retrieve({ page_id: id });
+        const response: any = await notion.pages.retrieve({ page_id: id });
         const properties = response.properties;
-
 
         const circle: Circle = {
             id: response.id,
-            circleName: properties.circleName.title[0].text.content,
+            name: properties.circleName.title[0].text.content,
             description: properties.description?.rich_text[0].text.content,
             iconImagePath: properties.iconImagePath?.rich_text[0].text.content,
-            backgroundImagePath: properties.backgroundImagePath?.rich_text[0].text.content,
+            backgroundImagePath:
+                properties.backgroundImagePath?.rich_text[0].text.content,
         };
 
         return NextResponse.json(circle);
@@ -48,7 +42,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
 export async function POST(req: NextRequest) {
     try {
-        const { circleName, description, iconImagePath, backgroundImagePath } = await req.json();
+        const { name, description, iconImagePath, backgroundImagePath } =
+            await req.json();
 
         const response = await notion.pages.create({
             parent: { database_id: NOTION_DATABASE_CIRCLES! },
@@ -57,7 +52,7 @@ export async function POST(req: NextRequest) {
                     title: [
                         {
                             text: {
-                                content: circleName,
+                                content: name,
                             },
                         },
                     ],
@@ -90,11 +85,15 @@ export async function POST(req: NextRequest) {
     }
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(
+    req: NextRequest,
+    { params }: { params: { id: string } }
+) {
     const { id } = params;
 
     try {
-        const { circleName, description, iconImagePath, backgroundImagePath } = await req.json();
+        const { name, description, iconImagePath, backgroundImagePath } =
+            await req.json();
 
         const response = await notion.pages.update({
             page_id: id,
@@ -103,7 +102,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
                     title: [
                         {
                             text: {
-                                content: circleName,
+                                content: name,
                             },
                         },
                     ],
@@ -136,7 +135,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(
+    req: NextRequest,
+    { params }: { params: { id: string } }
+) {
     const { id } = params;
 
     try {

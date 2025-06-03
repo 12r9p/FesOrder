@@ -8,10 +8,10 @@ dotenv.config();
 const notion = new Client({ auth: process.env.NOTION_API_TOKEN });
 const NOTION_DATABASE_ORDERS = process.env.NOTION_DATABASE_ORDERS!;
 
-
-
-export async function GET(req: NextRequest, { params }: { params: { circleId: string } }) {
-    console.log("GET request received");
+export async function GET(
+    req: NextRequest,
+    { params }: { params: { circleId: string } }
+) {
     const { circleId } = params;
 
     if (!circleId) {
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest, { params }: { params: { circleId: st
         const response = await notion.databases.query({
             database_id: NOTION_DATABASE_ORDERS,
             filter: {
-                property: 'circle',
+                property: "circle",
                 relation: {
                     contains: circleId,
                 },
@@ -86,9 +86,17 @@ export async function POST(req: NextRequest) {
         //     "cashier": "John Doe",
         //     "orderState": "pending"
         // }
-        const { orderId, circleId, orderItems, totalPrice, peopleCount, time, cashier, orderState } = await req.json();
+        const {
+            orderId,
+            circleId,
+            orderItems,
+            totalPrice,
+            peopleCount,
+            time,
+            cashier,
+            orderState,
+        } = await req.json();
         const orderItemsText = JSON.stringify(orderItems);
-
 
         const response = await notion.pages.create({
             parent: { database_id: NOTION_DATABASE_ORDERS },
@@ -146,7 +154,6 @@ export async function POST(req: NextRequest) {
             },
         });
 
-
         return NextResponse.json(response);
     } catch (error) {
         console.error(error);
@@ -157,7 +164,10 @@ export async function POST(req: NextRequest) {
     }
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { circleId: string } }) {
+export async function PATCH(
+    req: NextRequest,
+    { params }: { params: { circleId: string } }
+) {
     const { circleId } = params;
 
     if (!circleId) {
@@ -182,56 +192,56 @@ export async function PATCH(req: NextRequest, { params }: { params: { circleId: 
         const response = await notion.pages.update({
             page_id: id,
             properties: {
-            circle: {
-                relation: [{ id: circleId }],
-            },
-            orderId: {
-                title: [
-                {
-                    text: {
-                    content: orderId,
+                circle: {
+                    relation: [{ id: circleId }],
+                },
+                orderId: {
+                    title: [
+                        {
+                            text: {
+                                content: orderId,
+                            },
+                        },
+                    ],
+                },
+                orderItems: {
+                    rich_text: [
+                        {
+                            text: {
+                                content: orderItems,
+                            },
+                        },
+                    ],
+                },
+                totalPrice: {
+                    number: totalPrice,
+                },
+                peopleCount: {
+                    number: peopleCount,
+                },
+                time: {
+                    date: {
+                        start: time,
                     },
                 },
-                ],
-            },
-            orderItems: {
-                rich_text: [
-                {
-                    text: {
-                    content: orderItems,
-                    },
+                cashier: {
+                    rich_text: [
+                        {
+                            text: {
+                                content: cashier,
+                            },
+                        },
+                    ],
                 },
-                ],
-            },
-            totalPrice: {
-                number: totalPrice,
-            },
-            peopleCount: {
-                number: peopleCount,
-            },
-            time: {
-                date: {
-                start: time,
+                orderState: {
+                    rich_text: [
+                        {
+                            text: {
+                                content: orderState,
+                            },
+                        },
+                    ],
                 },
-            },
-            cashier: {
-                rich_text: [
-                {
-                    text: {
-                    content: cashier,
-                    },
-                },
-                ],
-            },
-            orderState: {
-                rich_text: [
-                {
-                    text: {
-                    content: orderState,
-                    },
-                },
-                ],
-            },
             },
         });
 
@@ -245,7 +255,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { circleId: 
     }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { circleId: string } }) {
+export async function DELETE(
+    req: NextRequest,
+    { params: _params }: { params: { circleId: string } }
+) {
     const { id } = await req.json();
 
     if (!id) {
