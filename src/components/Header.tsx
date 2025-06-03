@@ -1,10 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Image from "next/image";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
     Menu,
     BarChart,
@@ -12,6 +7,13 @@ import {
     ClipboardList,
     SmartphoneNfc,
 } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { useState, useEffect } from "react";
+
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+
 
 export default function Header() {
     const [eventName, setEventName] = useState("");

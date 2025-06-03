@@ -1,15 +1,18 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { AlertCircle } from "lucide-react";
 import Image from "next/image";
-import { Circle } from "@/types/interfaces";
+import { useParams, useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react";
+
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Circle } from "@/types/interfaces";
+
+
 
 export interface Event {
     eventName: string;

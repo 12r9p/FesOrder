@@ -1,7 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
 import { Client } from "@notionhq/client";
-import { Circle } from "@/types/interfaces";
 import dotenv from "dotenv";
+import { NextRequest, NextResponse } from "next/server";
+
+import { Circle } from "@/types/interfaces";
+
 
 dotenv.config();
 

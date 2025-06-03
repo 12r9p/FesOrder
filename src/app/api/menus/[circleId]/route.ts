@@ -1,6 +1,7 @@
 import { Client } from "@notionhq/client";
-import { NextRequest, NextResponse } from "next/server";
 import dotenv from "dotenv";
+import { NextRequest, NextResponse } from "next/server";
+
 import { MenuItem } from "@/types/interfaces";
 
 dotenv.config();

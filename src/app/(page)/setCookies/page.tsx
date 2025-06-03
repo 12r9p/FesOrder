@@ -3,8 +3,8 @@
 
 // app/page.tsx
 
-import { useEffect, useState } from 'react';
 import Cookies from 'js-cookie';
+import { useEffect, useState } from 'react';
 
 export default function HomePage() {
     // セッションの初期状態

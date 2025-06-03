@@ -1,6 +1,7 @@
 import { Client } from "@notionhq/client";
-import { NextRequest, NextResponse } from "next/server";
 import dotenv from "dotenv";
+import { NextRequest, NextResponse } from "next/server";
+
 import { Topping } from "@/types/interfaces";
 
 // 環境変数を読み込む

@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import Image from "next/image";
-import { v4 as uuidv4 } from "uuid";
+import { AnimatePresence, motion } from "framer-motion";
+import Cookies from "js-cookie";
 import {
     ChevronLeft,
     ShoppingCart,
@@ -12,6 +11,11 @@ import {
     User,
     RefreshCw,
 } from "lucide-react";
+import Image from "next/image";
+import React, { useState, useEffect, useCallback } from "react";
+import { v4 as uuidv4 } from "uuid";
+
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
     Card,
@@ -20,10 +24,6 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
     Dialog,
@@ -32,10 +32,12 @@ import {
     DialogTitle,
     DialogFooter,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/hooks/use-toast";
-import { AnimatePresence, motion } from "framer-motion";
-import Cookies from "js-cookie";
+
 
 interface MenuItem {
     id: string;
