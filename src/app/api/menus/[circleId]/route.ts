@@ -1,16 +1,18 @@
 import { Client } from "@notionhq/client";
-import { NextRequest, NextResponse } from "next/server";
 import dotenv from "dotenv";
-import { MenuItem } from "@/types/interfaces";
+import { NextRequest, NextResponse } from "next/server";
 
+import { MenuItem } from "@/types/interfaces";
 
 dotenv.config();
 
 const notion = new Client({ auth: process.env.NOTION_API_TOKEN });
 const NOTION_DATABASE_MENUS = process.env.NOTION_DATABASE_MENUS!;
 
-
-export async function GET(req: NextRequest, { params }: { params: { circleId: string } }) {
+export async function GET(
+    req: NextRequest,
+    { params }: { params: { circleId: string } }
+) {
     const { circleId } = params;
 
     if (!circleId) {
@@ -21,11 +23,10 @@ export async function GET(req: NextRequest, { params }: { params: { circleId: st
     }
 
     try {
-
         const menuResponse = await notion.databases.query({
             database_id: NOTION_DATABASE_MENUS,
             filter: {
-                property: 'circle',
+                property: "circle",
                 relation: {
                     contains: circleId,
                 },
@@ -39,8 +40,8 @@ export async function GET(req: NextRequest, { params }: { params: { circleId: st
                     id: result.id,
                     menuName: properties.menuName.title[0]?.text?.content || "",
                     price: properties.price.number,
-                    imagePath: properties.imagePath?.rich_text[0]?.text?.content ||
-                        "",
+                    imagePath:
+                        properties.imagePath?.rich_text[0]?.text?.content || "",
                     toppingIds:
                         properties.toppingIds?.relation.map(
                             (relation: any) => relation.id
@@ -70,14 +71,14 @@ export async function POST(
     req: NextRequest,
     { params }: { params: { circleId: string } }
 ) {
-const { circleId } = params;
+    const { circleId } = params;
 
-if (!circleId) {
-    return NextResponse.json(
-        { error: "circleId is required" },
-        { status: 400 }
-    );
-}
+    if (!circleId) {
+        return NextResponse.json(
+            { error: "circleId is required" },
+            { status: 400 }
+        );
+    }
 
     try {
         const {
@@ -89,7 +90,6 @@ if (!circleId) {
             additionalInfo,
             soldOut,
         } = await req.json();
-
 
         const response = await notion.pages.create({
             parent: { database_id: NOTION_DATABASE_MENUS },
@@ -155,12 +155,22 @@ if (!circleId) {
     }
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { circleId: string } }) {
-
-
+export async function PATCH(
+    req: NextRequest,
+    { params: _params }: { params: { circleId: string } }
+) {
     try {
-        const { id, circleId, menuName, price, imagePath, toppingIds, description, additionalInfo, soldOut } = await req.json();
-
+        const {
+            id,
+            circleId,
+            menuName,
+            price,
+            imagePath,
+            toppingIds,
+            description,
+            additionalInfo,
+            soldOut,
+        } = await req.json();
 
         const response = await notion.pages.update({
             page_id: id,
@@ -223,13 +233,19 @@ export async function PATCH(req: NextRequest, { params }: { params: { circleId: 
         return NextResponse.json(response);
     } catch (error) {
         console.error(error);
-        return NextResponse.json({
-            error:error
-        }, { status: 500 });
+        return NextResponse.json(
+            {
+                error: error,
+            },
+            { status: 500 }
+        );
     }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { circleId: string } }) {
+export async function DELETE(
+    req: NextRequest,
+    { params }: { params: { circleId: string } }
+) {
     const { circleId } = params;
 
     try {

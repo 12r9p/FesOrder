@@ -1,8 +1,9 @@
 //イベント名をパラメーターとして受け取り、該当するイベントのIDを配列で返す
 
 import { Client } from "@notionhq/client";
-import { NextRequest, NextResponse } from "next/server";
 import dotenv from "dotenv";
+import { NextRequest, NextResponse } from "next/server";
+
 import { Event } from "@/types/interfaces";
 
 // 環境変数を読み込む
