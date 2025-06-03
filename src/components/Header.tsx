@@ -1,49 +1,66 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import Image from 'next/image'
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { Button } from '@/components/ui/button'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { Menu, BarChart, UtensilsCrossed, ClipboardList, SmartphoneNfc } from 'lucide-react'
-import logo from '@/public/logo.png'
+import {
+    Menu,
+    BarChart,
+    UtensilsCrossed,
+    ClipboardList,
+    SmartphoneNfc,
+} from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { useState, useEffect } from "react";
+
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+
 
 export default function Header() {
-    const pathname = usePathname()
-    const [eventName, setEventName] = useState('')
-    const [circleName, setCircleName] = useState('')
-    const [userEmail, setUserEmail] = useState('')
+    const [eventName, setEventName] = useState("");
+    const [circleName, setCircleName] = useState("");
 
     useEffect(() => {
         const getCookieValue = (name: string) => {
             const value = `; ${document.cookie}`;
             const parts = value.split(`; ${name}=`);
-            if (parts.length === 2) return parts.pop()?.split(';').shift();
+            if (parts.length === 2) return parts.pop()?.split(";").shift();
         };
 
-        const circleId = getCookieValue('circleId');
-        const circleName = getCookieValue('circleName');
-        const eventName = getCookieValue('eventName');
+        const circleId = getCookieValue("circleId");
+        const circleName = getCookieValue("circleName");
+        const eventName = getCookieValue("eventName");
 
         if (circleId && circleName && eventName) {
             setCircleName(circleName);
             setEventName(eventName);
         } else {
-            setCircleName('');
-            setEventName('');
+            setCircleName("");
+            setEventName("");
         }
     }, []);
 
     const navItems = [
-        { href: '/register', icon: <SmartphoneNfc className="mr-2 h-4 w-4" />, label: 'Register' },
-        { href: '/dashboard/sales', icon: <BarChart className="mr-2 h-4 w-4" />, label: 'Sales Dashboard' },
-        { href: '/dashboard/menus', icon: <UtensilsCrossed className="mr-2 h-4 w-4" />, label: 'Menu Management' },
-        { href: '/dashboard/orders', icon: <ClipboardList className="mr-2 h-4 w-4" />, label: 'Order Management' },
-    ]
-
+        {
+            href: "/register",
+            icon: <SmartphoneNfc className="mr-2 h-4 w-4" />,
+            label: "Register",
+        },
+        {
+            href: "/dashboard/sales",
+            icon: <BarChart className="mr-2 h-4 w-4" />,
+            label: "Sales Dashboard",
+        },
+        {
+            href: "/dashboard/menus",
+            icon: <UtensilsCrossed className="mr-2 h-4 w-4" />,
+            label: "Menu Management",
+        },
+        {
+            href: "/dashboard/orders",
+            icon: <ClipboardList className="mr-2 h-4 w-4" />,
+            label: "Order Management",
+        },
+    ];
 
     return (
         <header className="flex items-center justify-between p-4 bg-black text-white">
@@ -72,8 +89,13 @@ export default function Header() {
                         </SheetContent>
                     </Sheet>
                 ) : null}
-                <div >
-                    <Image src={logo} alt="FesOrder Logo" width={40} height={40} />
+                <div>
+                    <Image
+                        src="/logo.png"
+                        alt="FesOrder Logo"
+                        width={40}
+                        height={40}
+                    />
                 </div>
                 <h1 className="text-xl font-bold">FesOrder</h1>
                 {eventName && circleName && (
@@ -83,5 +105,5 @@ export default function Header() {
                 )}
             </div>
         </header>
-    )
+    );
 }

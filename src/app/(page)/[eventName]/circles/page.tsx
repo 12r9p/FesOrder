@@ -1,14 +1,18 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { Circle } from '@/types/interfaces';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
-import { AlertCircle } from 'lucide-react'
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AlertCircle } from "lucide-react";
+import Image from "next/image";
+import { useParams, useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react";
+
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Circle } from "@/types/interfaces";
+
+
 
 export interface Event {
     eventName: string;
@@ -16,7 +20,7 @@ export interface Event {
 }
 
 const CircleCard: React.FC<Circle & { eventName: string }> = ({
-    id,
+    id: _id,
     name,
     description,
     iconImagePath,
@@ -36,25 +40,30 @@ const CircleCard: React.FC<Circle & { eventName: string }> = ({
         >
             <CardHeader className="relative p-0 overflow-hidden h-40">
                 {backgroundImagePath ? (
-                    <img
+                    <Image
                         src={backgroundImagePath}
                         alt={`${name} background`}
-                        className="w-full h-full object-cover"
+                        fill
+                        className="object-cover"
                     />
                 ) : (
                     <div className="w-full h-full bg-gray-200" />
                 )}
                 <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                    <CardTitle className="text-white text-2xl font-bold">{name}</CardTitle>
+                    <CardTitle className="text-white text-2xl font-bold">
+                        {name}
+                    </CardTitle>
                 </div>
             </CardHeader>
             <CardContent className="pt-4">
                 <div className="flex items-center mb-4">
                     {iconImagePath ? (
-                        <img
+                        <Image
                             src={iconImagePath}
                             alt={`${name} icon`}
-                            className="w-12 h-12 rounded-full mr-4 object-cover"
+                            width={48}
+                            height={48}
+                            className="rounded-full mr-4 object-cover"
                         />
                     ) : (
                         <div className="w-12 h-12 rounded-full mr-4 bg-gray-300" />
@@ -75,32 +84,38 @@ const CirclesPage = () => {
 
     useEffect(() => {
         const fetchCircles = async () => {
-            if (typeof eventName !== 'string') {
-                setError('Invalid event name');
+            if (typeof eventName !== "string") {
+                setError("Invalid event name");
                 setLoading(false);
                 return;
             }
 
             try {
-                const response = await fetch(`/api/event/${encodeURIComponent(eventName)}`);
+                const response = await fetch(
+                    `/api/event/${encodeURIComponent(eventName)}`
+                );
                 const data = await response.json();
                 if (true) {
                     const circleDetails = await Promise.all(
                         data.circleId.map(async (circleId: string) => {
-                            const circleResponse = await fetch(`/api/circle/${encodeURIComponent(circleId)}`);
+                            const circleResponse = await fetch(
+                                `/api/circle/${encodeURIComponent(circleId)}`
+                            );
                             if (!circleResponse.ok) {
-                                throw new Error(`Failed to fetch circle details for ${circleId}`);
+                                throw new Error(
+                                    `Failed to fetch circle details for ${circleId}`
+                                );
                             }
                             return await circleResponse.json();
                         })
                     );
                     setCircles(circleDetails);
                 } else {
-                    throw new Error(data.error || 'Failed to fetch circles');
+                    throw new Error(data.error || "Failed to fetch circles");
                 }
             } catch (error) {
-                console.error('Error fetching circles:', error);
-                setError('Failed to load circles. Please try again later.');
+                console.error("Error fetching circles:", error);
+                setError("Failed to load circles. Please try again later.");
             } finally {
                 setLoading(false);
             }
@@ -147,10 +162,13 @@ const CirclesPage = () => {
                                 <Alert>
                                     <AlertCircle className="h-4 w-4" />
                                     <AlertTitle>No Circles Found</AlertTitle>
-                                    <AlertDescription>There are no circles available for this event.</AlertDescription>
+                                    <AlertDescription>
+                                        There are no circles available for this
+                                        event.
+                                    </AlertDescription>
                                 </Alert>
                             ) : (
-                                circles.map(circle => (
+                                circles.map((circle) => (
                                     <CircleCard
                                         key={circle[0].id}
                                         {...circle[0]}
