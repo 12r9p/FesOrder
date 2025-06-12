@@ -133,11 +133,14 @@ export async function PATCH(
     try {
         const { id, toppingName, price, description, soldOut } =
             await req.json();
+        const parsedPrice = typeof price === "string" ? Number(price) : price;
         if (
             !toppingName ||
-            !price ||
+            parsedPrice === undefined ||
+            parsedPrice === null ||
             !description ||
-            typeof soldOut === "undefined"
+            typeof soldOut === "undefined" ||
+            Number.isNaN(parsedPrice)
         ) {
             return NextResponse.json(
                 { error: "Invalid request data" },
@@ -158,7 +161,7 @@ export async function PATCH(
                     ],
                 },
                 price: {
-                    number: price,
+                    number: parsedPrice,
                 },
                 description: {
                     rich_text: [
